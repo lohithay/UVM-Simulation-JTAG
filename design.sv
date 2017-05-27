@@ -113,7 +113,8 @@ endmodule
 
 interface dut_if;
                 
-          logic  tms_pad_i, tck_pad_i, trstn_pad_i, tdi_pad_i, tdo_pad_o, tdo_padoe_o; // JTAG pads              
+          logic  tms_pad_i, tck_pad_i, trstn_pad_i, tdi_pad_i, tdo_pad_o, tdo_padoe_o; // JTAG pads
+	  //Pins that are used for Logical verification              
           logic  test_logic_reset_o, run_test_idle_o, shift_dr_o, pause_dr_o, update_dr_o, capture_dr_o; // TAP states
           logic  extest_select_o, sample_preload_select_o, mbist_select_o, debug_select_o;// Select signals for boundary scan or mbist                
           logic  tdi_o;   // TDO signal that is connected to TDI of sub-module
@@ -121,6 +122,7 @@ interface dut_if;
           logic  bs_chain_tdo_i; // from Boundary Scan Chain
           logic  mbist_tdo_i;     // from Mbist Chain 
 	  logic  clock;	//for simulation purposes
+
 endinterface
 
 `include "uvm_macros.svh"
@@ -251,90 +253,90 @@ begin
 end
 
 endmodule
-/*
+
 
 // Determination of next state; purely combinatorial
-always @ (TAP_state or tms_pad_i)
+always @ (TAP_state or dif.tms_pad_i)
 begin
 	case(TAP_state)
 		`STATE_test_logic_reset:
 			begin
-			if(tms_pad_i) next_TAP_state = `STATE_test_logic_reset; 
+			if(dif.tms_pad_i) next_TAP_state = `STATE_test_logic_reset; 
 			else next_TAP_state = `STATE_run_test_idle;
 			end
 		`STATE_run_test_idle:
 			begin
-			if(tms_pad_i) next_TAP_state = `STATE_select_dr_scan; 
+			if(dif.tms_pad_i) next_TAP_state = `STATE_select_dr_scan; 
 			else next_TAP_state = `STATE_run_test_idle;
 			end
 		`STATE_select_dr_scan:
 			begin
-			if(tms_pad_i) next_TAP_state = `STATE_select_ir_scan; 
+			if(dif.tms_pad_i) next_TAP_state = `STATE_select_ir_scan; 
 			else next_TAP_state = `STATE_capture_dr;
 			end
 		`STATE_capture_dr:
 			begin
-			if(tms_pad_i) next_TAP_state = `STATE_exit1_dr; 
+			if(dif.tms_pad_i) next_TAP_state = `STATE_exit1_dr; 
 			else next_TAP_state = `STATE_shift_dr;
 			end
 		`STATE_shift_dr:
 			begin
-			if(tms_pad_i) next_TAP_state = `STATE_exit1_dr; 
+			if(dif.tms_pad_i) next_TAP_state = `STATE_exit1_dr; 
 			else next_TAP_state = `STATE_shift_dr;
 			end
 		`STATE_exit1_dr:
 			begin
-			if(tms_pad_i) next_TAP_state = `STATE_update_dr; 
+			if(dif.tms_pad_i) next_TAP_state = `STATE_update_dr; 
 			else next_TAP_state = `STATE_pause_dr;
 			end
 		`STATE_pause_dr:
 			begin
-			if(tms_pad_i) next_TAP_state = `STATE_exit2_dr; 
+			if(dif.tms_pad_i) next_TAP_state = `STATE_exit2_dr; 
 			else next_TAP_state = `STATE_pause_dr;
 			end
 		`STATE_exit2_dr:
 			begin
-			if(tms_pad_i) next_TAP_state = `STATE_update_dr; 
+			if(dif.tms_pad_i) next_TAP_state = `STATE_update_dr; 
 			else next_TAP_state = `STATE_shift_dr;
 			end
 		`STATE_update_dr:
 			begin
-			if(tms_pad_i) next_TAP_state = `STATE_select_dr_scan; 
+			if(dif.tms_pad_i) next_TAP_state = `STATE_select_dr_scan; 
 			else next_TAP_state = `STATE_run_test_idle;
 			end
 		`STATE_select_ir_scan:
 			begin
-			if(tms_pad_i) next_TAP_state = `STATE_test_logic_reset;
+			if(dif.tms_pad_i) next_TAP_state = `STATE_test_logic_reset;
 			else next_TAP_state = `STATE_capture_ir;
 			end
 		`STATE_capture_ir:
 			begin
-			if(tms_pad_i) next_TAP_state = `STATE_exit1_ir; 
+			if(dif.tms_pad_i) next_TAP_state = `STATE_exit1_ir; 
 			else next_TAP_state = `STATE_shift_ir;
 			end
 		`STATE_shift_ir:
 			begin
-			if(tms_pad_i) next_TAP_state = `STATE_exit1_ir; 
+			if(dif.tms_pad_i) next_TAP_state = `STATE_exit1_ir; 
 			else next_TAP_state = `STATE_shift_ir;
 			end
 		`STATE_exit1_ir:
 			begin
-			if(tms_pad_i) next_TAP_state = `STATE_update_ir;
+			if(dif.tms_pad_i) next_TAP_state = `STATE_update_ir;
 			else next_TAP_state = `STATE_pause_ir;
 			end
 		`STATE_pause_ir:
 			begin
-			if(tms_pad_i) next_TAP_state = `STATE_exit2_ir;
+			if(dif.tms_pad_i) next_TAP_state = `STATE_exit2_ir;
 			else next_TAP_state = `STATE_pause_ir;
 			end
 		`STATE_exit2_ir:
 			begin
-			  if(tms_pad_i) next_TAP_state = `STATE_update_ir;
+			  if(dif.tms_pad_i) next_TAP_state = `STATE_update_ir;
 			  else next_TAP_state = `STATE_shift_ir;
 			end
 		`STATE_update_ir:
 			begin
-			if(tms_pad_i) next_TAP_state = `STATE_select_dr_scan;
+			if(dif.tms_pad_i) next_TAP_state = `STATE_select_dr_scan;
 			else next_TAP_state = `STATE_run_test_idle;
 			end
 		default: next_TAP_state = `STATE_test_logic_reset;  // can't actually happen
@@ -363,6 +365,7 @@ begin
 	exit2_ir = 1'b0;
 	update_ir = 1'b0;
 
+	//These values are defined as outputs
 	case(TAP_state)
 		`STATE_test_logic_reset: test_logic_reset = 1'b1;
 		`STATE_run_test_idle:    run_test_idle = 1'b1;
@@ -565,14 +568,4 @@ end
 //                                                                                //
 //================================================================================//
 endmodule
-
-//================================================================================//
-*                                                                                 *
-*   Selecting active data register                                                *
-*                                                                                 *
-//================================================================================////================================================================================//
-*                                                                                 *
-*   Selecting active data register                                                *
-*                                                                                 *
-//================================================================================//
 */
