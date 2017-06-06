@@ -57,7 +57,8 @@
 //
 // $Log: tap_top.v,v $
 // Revision 1.5  2009-06-16 02:53:58  Nathan
-// Changed some signal names for better consistency between different hardware modules. Removed stale CVS log/comments.
+// Changed some signal names for better consistency between 
+// different hardware modules. Removed stale CVS log/comments.
 //
 // Revision 1.4  2009/05/17 20:54:38  Nathan
 // Changed email address to opencores.org
@@ -76,53 +77,18 @@
 // to a single shared FF.
 //
 
-/*
-
-// This is the SystemVerilog interface that we will use to connect
-// our design to our UVM testbench.
+`include "tap_defines.v"
 interface dut_if;
-  logic clock, reset;
-  logic cmd;
-  logic [7:0] addr;
-  logic [7:0] data;
-endinterface
-
-`include "uvm_macros.svh"
-
-// This is our design module
-// It is an empty design that simply prints a message whenever
-// the clock toggles.
-module dut(dut_if dif);
-  import uvm_pkg::*;
-  always @(posedge dif.clock)
-  begin
-    if (dif.reset != 1 && dif.cmd==1) 
-     begin
-      `uvm_info("DUT", $sformatf("Received cmd=%b, addr=0x%2h, data=0x%2h", dif.cmd, dif.addr, dif.data), UVM_MEDIUM)
-     end
-    else if(dif.reset!=1 && dif.cmd==0)
-     begin
-      `uvm_info("DUT", $sformatf("ELSE:Received cmd=%b, addr=0x%2h, data=0x%2h", dif.cmd, dif.addr, dif.data), UVM_MEDIUM)
-     end
-  end    
-endmodule
-*/
-
-//`include "tap_defines.v"
-//
-
-interface dut_if;
-                
-          logic  tms_pad_i, tck_pad_i, trstn_pad_i, tdi_pad_i, tdo_pad_o, tdo_padoe_o; // JTAG pads
-	  //Pins that are used for Logical verification              
-          logic  test_logic_reset_o, run_test_idle_o, shift_dr_o, pause_dr_o, update_dr_o, capture_dr_o; // TAP states
-          logic  extest_select_o, sample_preload_select_o, mbist_select_o, debug_select_o;// Select signals for boundary scan or mbist                
-          logic  tdi_o;   // TDO signal that is connected to TDI of sub-module
-          logic  debug_tdo_i;    // from debug module
-          logic  bs_chain_tdo_i; // from Boundary Scan Chain
-          logic  mbist_tdo_i;     // from Mbist Chain 
-	  logic  clock;	//for simulation purposes
-
+	logic  tms_pad_i, tck_pad_i, trstn_pad_i, tdi_pad_i, tdo_pad_o, tdo_padoe_o; // JTAG pads
+	
+	//Pins that are used for Logical verification              
+	logic  test_logic_reset_o, run_test_idle_o, shift_dr_o, pause_dr_o, update_dr_o, capture_dr_o; // TAP states
+	logic  extest_select_o, sample_preload_select_o, mbist_select_o, debug_select_o;// Select signals for boundary scan or mbist                
+	logic  tdi_o;           // TDO signal that is connected to TDI of sub-module
+	logic  debug_tdo_i;     // from debug module
+	logic  bs_chain_tdo_i;  // from Boundary Scan Chain
+	logic  mbist_tdo_i;     // from Mbist Chain 
+	logic  clock;	        //for simulation purposes
 endinterface
 
 `include "uvm_macros.svh"
@@ -130,64 +96,18 @@ endinterface
 // Top module
 module dut(dut_if dif);
 import uvm_pkg::*;
-            /*   // JTAG pads
-                tms_pad_i, tck_pad_i, trstn_pad_i, tdi_pad_i, tdo_pad_o, tdo_padoe_o,
 
-                // TAP states
-		test_logic_reset_o, run_test_idle_o, shift_dr_o, pause_dr_o, update_dr_o, capture_dr_o,
-                
-                // Select signals for boundary scan or mbist
-                extest_select_o, sample_preload_select_o, mbist_select_o, debug_select_o,
-                
-                // TDO signal that is connected to TDI of sub-modules.
-                tdi_o, 
-                
-                // TDI signals from sub-modules
-                debug_tdo_i,    // from debug module
-                bs_chain_tdo_i, // from Boundary Scan Chain
-                mbist_tdo_i     // from Mbist Chain
-
-		clock; // for simulation purposes
-              ); 
-
-
-// JTAG pins
-input   dif.tms_pad_i;      // JTAG test mode select pad
-input   dif.tck_pad_i;      // JTAG test clock pad
-input   dif.trstn_pad_i;     // JTAG test reset pad
-input   dif.tdi_pad_i;      // JTAG test data input pad
-output  dif.tdo_pad_o;      // JTAG test data output pad
-output  dif.tdo_padoe_o;    // Output enable for JTAG test data output pad 
-
-// TAP states
-output  dif.test_logic_reset_o, dif.run_test_idle_o, dif.shift_dr_o, dif.pause_dr_o, dif.update_dr_o, dif.capture_dr_o;
-
-// Select signals for boundary scan or mbist
-output  dif.extest_select_o, dif.sample_preload_select_o, dif.mbist_select_o, debug_select_o;
-
-// TDO signal that is connected to TDI of sub-modules.
-output  dif.tdi_o;
-
-// TDI signals from sub-modules
-input   dif.debug_tdo_i;    // from debug module
-input   dif.bs_chain_tdo_i; // from Boundary Scan Chain
-input   dif.mbist_tdo_i;    // from Mbist Chain
-
-//CLOCK
-input  dif.clock;
-*/
+//REGISTERS
 reg    clock_dummy;
-
 // Wires which depend on the state of the TAP FSM
 reg     test_logic_reset, run_test_idle, select_dr_scan, capture_dr, shift_dr, exit1_dr;
 reg     pause_dr, exit2_dr, update_dr, select_ir_scan, capture_ir, shift_ir;
 reg     exit1_ir, pause_ir, exit2_ir, update_ir;
-
 // Wires which depend on the current value in the IR
 reg     extest_select, sample_preload_select, idcode_select, mbist_select, debug_select, bypass_select;
-
 // TDO and enable
 reg     tdo_pad_o, tdo_padoe_o;
+
 
 //Assignment of registers and I/O ports //
 assign dif.tdi_o = dif.tdi_pad_i;
@@ -243,16 +163,19 @@ begin
 	 	//`uvm_info("DUT", $sformatf("Received cmd=%b, addr=0x%2h, data=0x%2h", dif.cmd, dif.addr, dif.data), UVM_MEDIUM)
 	end
 	else
+	begin
 		TAP_state = next_TAP_state;
+		`uvm_info("DUT", $sformatf("Reset Condition", dif.trstn_pad_i, dif.tms_pad_i, dif.tdi_pad_i), UVM_MEDIUM)
+	end
 end
 
 
 always @ (posedge dif.clock)
 begin
-	clock_dummy = ~clock_dummy; 
+	clock_dummy = ~clock_dummy;
 end
 
-endmodule
+//endmodule
 
 
 // Determination of next state; purely combinatorial
@@ -261,12 +184,18 @@ begin
 	case(TAP_state)
 		`STATE_test_logic_reset:
 			begin
-			if(dif.tms_pad_i) next_TAP_state = `STATE_test_logic_reset; 
-			else next_TAP_state = `STATE_run_test_idle;
+				if(dif.tms_pad_i) 
+					next_TAP_state = `STATE_test_logic_reset; 
+				else 
+					next_TAP_state = `STATE_run_test_idle;
 			end
 		`STATE_run_test_idle:
 			begin
-			if(dif.tms_pad_i) next_TAP_state = `STATE_select_dr_scan; 
+			if(dif.tms_pad_i) 
+			  begin
+       			    next_TAP_state = `STATE_select_dr_scan; 
+			    `uvm_info("DUT", $sformatf("SELECT_DR_SCAN STATE"), UVM_MEDIUM)
+			  end
 			else next_TAP_state = `STATE_run_test_idle;
 			end
 		`STATE_select_dr_scan:
@@ -388,41 +317,41 @@ begin
 end
 
 //================================================================================//
-*                                                                                 *
-*   End: TAP State Machine                                                        *
-*                                                                                 *
+//                                                                                 //
+//   End: TAP State Machine                                                        //
+//                                                                                 //
 //================================================================================//
 
 
 
 //================================================================================//
-*                                                                                 *
-*   jtag_ir:  JTAG Instruction Register                                           *
-*                                                                                 *
+//                                                                                 //
+//   jtag_ir:  JTAG Instruction Register                                           //
+//                                                                                 //
 //================================================================================//
 reg [`IR_LENGTH-1:0]  jtag_ir;          // Instruction register
 reg [`IR_LENGTH-1:0]  latched_jtag_ir; //, latched_jtag_ir_neg;
 wire                  instruction_tdo;
 
-always @ (posedge tck_pad_i or negedge trstn_pad_i)
+always @ (posedge dif.tck_pad_i or negedge dif.trstn_pad_i)
 begin
-  if(trstn_pad_i == 0)
+  if(dif.trstn_pad_i == 0)
     jtag_ir[`IR_LENGTH-1:0] <= #1 `IR_LENGTH'b0;
   else if (test_logic_reset == 1)
 	jtag_ir[`IR_LENGTH-1:0] <= #1 `IR_LENGTH'b0;
   else if(capture_ir)
     jtag_ir <= #1 4'b0101;          // This value is fixed for easier fault detection
   else if(shift_ir)
-    jtag_ir[`IR_LENGTH-1:0] <= #1 {tdi_pad_i, jtag_ir[`IR_LENGTH-1:1]};
+    jtag_ir[`IR_LENGTH-1:0] <= #1 {dif.tdi_pad_i, jtag_ir[`IR_LENGTH-1:1]};
 end
 
 assign instruction_tdo = jtag_ir[0];  // This is latched on a negative TCK edge after the output MUX
 
 // Updating jtag_ir (Instruction Register)
 // jtag_ir should be latched on FALLING EDGE of TCK when capture_ir == 1
-always @ (negedge tck_pad_i or negedge trstn_pad_i)
+always @ (negedge dif.tck_pad_i or negedge dif.trstn_pad_i)
 begin
-  if(trstn_pad_i == 0)
+  if(dif.trstn_pad_i == 0)
     latched_jtag_ir <=#1 `IDCODE;   // IDCODE selected after reset
   else if (test_logic_reset)
     latched_jtag_ir <=#1 `IDCODE;   // IDCODE selected after reset
@@ -431,76 +360,76 @@ begin
 end
 
 //================================================================================//
-*                                                                                 *
-*   End: jtag_ir                                                                  *
-*                                                                                 *
+//                                                                                 //
+//   End: jtag_ir                                                                  //
+//                                                                                 //
 //================================================================================//
 
 
 
 //================================================================================//
-*                                                                                 *
-*   idcode logic                                                                  *
-*                                                                                 *
+//                                                                                 //
+//   idcode logic                                                                  //
+//                                                                                 //
 //================================================================================//
 reg [31:0] idcode_reg;
 wire        idcode_tdo;
 
-always @ (posedge tck_pad_i or negedge trstn_pad_i)
+always @ (posedge dif.tck_pad_i or negedge dif.trstn_pad_i)
 begin
-  if(trstn_pad_i == 0)
+  if(dif.trstn_pad_i == 0)
     idcode_reg <=#1 `IDCODE_VALUE;   // IDCODE selected after reset
   else if (test_logic_reset)
     idcode_reg <=#1 `IDCODE_VALUE;   // IDCODE selected after reset
   else if(idcode_select & capture_dr)
     idcode_reg <= #1 `IDCODE_VALUE;
   else if(idcode_select & shift_dr)
-    idcode_reg <= #1 {tdi_pad_i, idcode_reg[31:1]};
+    idcode_reg <= #1 {dif.tdi_pad_i, idcode_reg[31:1]};
 
 end
 
 assign idcode_tdo = idcode_reg[0];   // This is latched on a negative TCK edge after the output MUX
 
 //================================================================================//
-*                                                                                 *
-*   End: idcode logic                                                             *
-*                                                                                 *
+//                                                                                 //
+//   End: idcode logic                                                             //
+//                                                                                 //
 //================================================================================//
 
 
 //================================================================================//
-*                                                                                 *
-*   Bypass logic                                                                  *
-*                                                                                 *
+//                                                                                 //
+//   Bypass logic                                                                  //
+//                                                                                 //
 //================================================================================//
 wire  bypassed_tdo;
 reg   bypass_reg;  // This is a 1-bit register
 
-always @ (posedge tck_pad_i or negedge trstn_pad_i)
+always @ (posedge dif.tck_pad_i or negedge dif.trstn_pad_i)
 begin
-  if (trstn_pad_i == 0)
+  if (dif.trstn_pad_i == 0)
      bypass_reg <= #1 1'b0;
   else if (test_logic_reset == 1)
      bypass_reg <= #1 1'b0;
   else if (bypass_select & capture_dr)
     bypass_reg<=#1 1'b0;
   else if(bypass_select & shift_dr)
-    bypass_reg<=#1 tdi_pad_i;
+    bypass_reg<=#1 dif.tdi_pad_i;
 end
 
 assign bypassed_tdo = bypass_reg;   // This is latched on a negative TCK edge after the output MUX
 
 //================================================================================//
-*                                                                                 *
-*   End: Bypass logic                                                             *
-*                                                                                 *
+//                                                                                 //
+//   End: Bypass logic                                                             //
+//                                                                                 //
 //================================================================================//
 
 
 //================================================================================//
-*                                                                                 *
-*   Selecting active data register                                                *
-*                                                                                 *
+//                                                                                 //
+//   Selecting active data register                                                //
+//                                                                                 //
 //================================================================================//
 always @ (latched_jtag_ir)
 begin
@@ -524,15 +453,15 @@ end
 
 
 //================================================================================//
-*                                                                                 *
-*   Multiplexing TDO data                                                         *
-*                                                                                 *
+//                                                                                 //
+//   Multiplexing TDO data                                                         //
+//                                                                                 //
 //================================================================================//
 reg tdo_mux_out;  // really just a wire
 
 always @ (shift_ir or instruction_tdo or latched_jtag_ir or idcode_tdo or
-          debug_tdo_i or bs_chain_tdo_i or mbist_tdo_i or bypassed_tdo or
-			bs_chain_tdo_i)
+          dif.debug_tdo_i or dif.bs_chain_tdo_i or dif.mbist_tdo_i or bypassed_tdo or
+			dif.bs_chain_tdo_i)
 begin
   if(shift_ir)
     tdo_mux_out = instruction_tdo;
@@ -540,10 +469,10 @@ begin
     begin
       case(latched_jtag_ir)    // synthesis parallel_case
         `IDCODE:            tdo_mux_out = idcode_tdo;       // Reading ID code
-        `DEBUG:             tdo_mux_out = debug_tdo_i;      // Debug
-        `SAMPLE_PRELOAD:    tdo_mux_out = bs_chain_tdo_i;   // Sampling/Preloading
-        `EXTEST:            tdo_mux_out = bs_chain_tdo_i;   // External test
-        `MBIST:             tdo_mux_out = mbist_tdo_i;      // Mbist test
+        `DEBUG:             tdo_mux_out = dif.debug_tdo_i;      // Debug
+        `SAMPLE_PRELOAD:    tdo_mux_out = dif.bs_chain_tdo_i;   // Sampling/Preloading
+        `EXTEST:            tdo_mux_out = dif.bs_chain_tdo_i;   // External test
+        `MBIST:             tdo_mux_out = dif.mbist_tdo_i;      // Mbist test
         default:            tdo_mux_out = bypassed_tdo;     // BYPASS instruction
       endcase
     end
@@ -551,14 +480,14 @@ end
 
 
 // TDO changes state at negative edge of TCK
-always @ (negedge tck_pad_i)
+always @ (negedge dif.tck_pad_i)
 begin
 	tdo_pad_o = tdo_mux_out;
 end
 
 
 // Tristate control for tdo_pad_o pin
-always @ (posedge tck_pad_i)
+always @ (posedge dif.tck_pad_i)
 begin
   tdo_padoe_o <= #1 shift_ir | shift_dr;
 end
@@ -568,4 +497,4 @@ end
 //                                                                                //
 //================================================================================//
 endmodule
-*/
+///
