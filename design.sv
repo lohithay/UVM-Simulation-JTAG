@@ -13,7 +13,7 @@
 ////                                                              ////
 //////////////////////////////////////////////////////////////////////
 ////                                                              ////
-////  tap_top.v                                                   ////
+////  Code partly edited from tap_top.v                           ////
 ////                                                              ////
 ////                                                              ////
 ////  This file is part of the JTAG Test Access Port (TAP)        ////
@@ -52,38 +52,38 @@
 //// from http://www.opencores.org/lgpl.shtml                     ////
 ////                                                              ////
 //////////////////////////////////////////////////////////////////////
-//
-// CVS Revision History
-//
-// $Log: tap_top.v,v $
-// Revision 1.5  2009-06-16 02:53:58  Nathan
-// Changed some signal names for better consistency between 
-// different hardware modules. Removed stale CVS log/comments.
-//
-// Revision 1.4  2009/05/17 20:54:38  Nathan
-// Changed email address to opencores.org
-//
-// Revision 1.3  2008/06/18 18:45:07  Nathan
-// Improved reset slightly.  Cleanup.
-//
-//
-// Revision 1.2 2008/05/14 13:13:24 Nathan
-// Rewrote TAP FSM in canonical form, for readability.  Switched
-// from one-hot to binary encoding.  Made reset signal active-
-// low, per JTAG spec.  Removed FF chain for 5 TMS reset - reset
-// done in Test Logic Reset mode.  Added test_logic_reset_o and
-// run_test_idle_o signals.  Removed double registers from IR data
-// path.  Unified the registers at the output of each data register
-// to a single shared FF.
-//
+//                                                                ////
+// CVS Revision History                                           ////
+//                                                                ////
+// $Log: tap_top.v,v $                                            ////
+// Revision 1.5  2009-06-16 02:53:58  Nathan                      ////
+// Changed some signal names for better consistency between       ////
+// different hardware modules. Removed stale CVS log/comments.    ////
+//                                                                ////
+// Revision 1.4  2009/05/17 20:54:38  Nathan                      ////
+// Changed email address to opencores.org                         ////
+//                                                                ////
+// Revision 1.3  2008/06/18 18:45:07  Nathan                      ////
+// Improved reset slightly.  Cleanup.                             ////
+//                                                                ////
+//                                                                ////
+// Revision 1.2 2008/05/14 13:13:24 Nathan                        ////
+// Rewrote TAP FSM in canonical form, for readability.  Switched  ////
+// from one-hot to binary encoding.  Made reset signal active-    ////
+// low, per JTAG spec.  Removed FF chain for 5 TMS reset - reset  ////
+// done in Test Logic Reset mode.  Added test_logic_reset_o and   ////
+// run_test_idle_o signals.  Removed double registers from IR data////
+// path.  Unified the registers at the output of each data register///
+// to a single shared FF.                                         ////
+//                                                                ////
+//////////////////////////////////////////////////////////////////////
 
 `include "tap_defines.v"
 interface dut_if;
 	logic  tms_pad_i, tck_pad_i, trstn_pad_i, tdi_pad_i, tdo_pad_o, tdo_padoe_o; // JTAG pads
-	
 	//Pins that are used for Logical verification              
-	logic  test_logic_reset_o, run_test_idle_o, shift_dr_o, pause_dr_o, update_dr_o, capture_dr_o; // TAP states
-	logic  extest_select_o, sample_preload_select_o, mbist_select_o, debug_select_o;// Select signals for boundary scan or mbist                
+	logic  test_logic_reset_o, run_test_idle_o, shift_dr_o, pause_dr_o, update_dr_o, capture_dr_o, shift_ir_o, update_ir_o; // TAP states
+	logic  extest_select_o, sample_preload_select_o, mbist_select_o, debug_select_o, bypass_select_o;// Select signals for boundary scan or mbist                
 	logic  tdi_o;           // TDO signal that is connected to TDI of sub-module
 	logic  debug_tdo_i;     // from debug module
 	logic  bs_chain_tdo_i;  // from Boundary Scan Chain
@@ -111,6 +111,7 @@ reg     tdo_pad_o, tdo_padoe_o;
 
 //Assignment of registers and I/O ports //
 assign dif.tdi_o = dif.tdi_pad_i;
+assign dif.tdo_pad_o = tdo_pad_o;
 
 assign dif.test_logic_reset_o = test_logic_reset;
 assign dif.run_test_idle_o = run_test_idle;
@@ -119,10 +120,15 @@ assign dif.pause_dr_o = pause_dr;
 assign dif.update_dr_o = update_dr;
 assign dif.capture_dr_o = capture_dr;
 
+//Added for functional verification
+assign dif.shift_ir_o = shift_ir;
+assign dif.update_ir_o = update_ir;
+
 assign dif.extest_select_o = extest_select;
 assign dif.sample_preload_select_o = sample_preload_select;
 assign dif.mbist_select_o = mbist_select;
 assign dif.debug_select_o = debug_select;
+assign dif.bypass_select_o = bypass_select;
 //================================================================================//
 
 
@@ -159,117 +165,166 @@ begin
 	if(dif.trstn_pad_i == 0)
         begin 
 		TAP_state = `STATE_test_logic_reset;
-		`uvm_info("DUT", $sformatf("Received reset=%b tms=%b tdi=%b", dif.trstn_pad_i, dif.tms_pad_i, dif.tdi_pad_i), UVM_MEDIUM)
-	 	//`uvm_info("DUT", $sformatf("Received cmd=%b, addr=0x%2h, data=0x%2h", dif.cmd, dif.addr, dif.data), UVM_MEDIUM)
+		`uvm_info("DUT", $sformatf("design.sv: RESET RECIEVED"), UVM_MEDIUM)	
 	end
 	else
 	begin
 		TAP_state = next_TAP_state;
-		`uvm_info("DUT", $sformatf("Reset Condition", dif.trstn_pad_i, dif.tms_pad_i, dif.tdi_pad_i), UVM_MEDIUM)
+		//`uvm_info("DUT", $sformatf("design.sv: NEXT STATE"), UVM_MEDIUM)
 	end
 end
 
-
+//was trying something. Not very important for simulation
 always @ (posedge dif.clock)
 begin
 	clock_dummy = ~clock_dummy;
 end
 
-//endmodule
-
-
 // Determination of next state; purely combinatorial
 always @ (TAP_state or dif.tms_pad_i)
 begin
 	case(TAP_state)
+	
 		`STATE_test_logic_reset:
 			begin
 				if(dif.tms_pad_i) 
 					next_TAP_state = `STATE_test_logic_reset; 
 				else 
+				begin
 					next_TAP_state = `STATE_run_test_idle;
+					`uvm_info("DUT", $sformatf("design.sv: Run Test Idle STATE"), UVM_MEDIUM)
+				end
 			end
+			
 		`STATE_run_test_idle:
 			begin
 			if(dif.tms_pad_i) 
-			  begin
-       			    next_TAP_state = `STATE_select_dr_scan; 
-			    `uvm_info("DUT", $sformatf("SELECT_DR_SCAN STATE"), UVM_MEDIUM)
-			  end
-			else next_TAP_state = `STATE_run_test_idle;
+				begin
+					next_TAP_state = `STATE_select_dr_scan; 
+					`uvm_info("DUT", $sformatf("SELECT_DR_SCAN STATE"), UVM_MEDIUM)
+				end
+			else
+				begin			
+					next_TAP_state = `STATE_run_test_idle;
+				end
 			end
+	
 		`STATE_select_dr_scan:
 			begin
-			if(dif.tms_pad_i) next_TAP_state = `STATE_select_ir_scan; 
-			else next_TAP_state = `STATE_capture_dr;
+				if(dif.tms_pad_i) 
+					next_TAP_state = `STATE_select_ir_scan; 
+				else 
+					next_TAP_state = `STATE_capture_dr;
 			end
+		
 		`STATE_capture_dr:
 			begin
-			if(dif.tms_pad_i) next_TAP_state = `STATE_exit1_dr; 
-			else next_TAP_state = `STATE_shift_dr;
+				if(dif.tms_pad_i) 
+					next_TAP_state = `STATE_exit1_dr; 
+				else 
+					next_TAP_state = `STATE_shift_dr;
 			end
+		
 		`STATE_shift_dr:
 			begin
-			if(dif.tms_pad_i) next_TAP_state = `STATE_exit1_dr; 
-			else next_TAP_state = `STATE_shift_dr;
+				if(dif.tms_pad_i) 
+					next_TAP_state = `STATE_exit1_dr; 
+				else 
+					next_TAP_state = `STATE_shift_dr;
 			end
+		
 		`STATE_exit1_dr:
 			begin
-			if(dif.tms_pad_i) next_TAP_state = `STATE_update_dr; 
-			else next_TAP_state = `STATE_pause_dr;
+				if(dif.tms_pad_i) 
+					next_TAP_state = `STATE_update_dr; 
+				else 
+					next_TAP_state = `STATE_pause_dr;
 			end
+		
 		`STATE_pause_dr:
 			begin
-			if(dif.tms_pad_i) next_TAP_state = `STATE_exit2_dr; 
-			else next_TAP_state = `STATE_pause_dr;
+				if(dif.tms_pad_i) 
+					next_TAP_state = `STATE_exit2_dr; 
+				else 
+					next_TAP_state = `STATE_pause_dr;
 			end
+		
 		`STATE_exit2_dr:
 			begin
-			if(dif.tms_pad_i) next_TAP_state = `STATE_update_dr; 
-			else next_TAP_state = `STATE_shift_dr;
+				if(dif.tms_pad_i) 
+					next_TAP_state = `STATE_update_dr; 
+				else 
+					next_TAP_state = `STATE_shift_dr;
 			end
+		
 		`STATE_update_dr:
 			begin
-			if(dif.tms_pad_i) next_TAP_state = `STATE_select_dr_scan; 
-			else next_TAP_state = `STATE_run_test_idle;
+				if(dif.tms_pad_i) 
+					next_TAP_state = `STATE_select_dr_scan; 
+				else 
+					next_TAP_state = `STATE_run_test_idle;
 			end
+		
 		`STATE_select_ir_scan:
 			begin
-			if(dif.tms_pad_i) next_TAP_state = `STATE_test_logic_reset;
-			else next_TAP_state = `STATE_capture_ir;
+				if(dif.tms_pad_i) 
+					next_TAP_state = `STATE_test_logic_reset;
+				else 
+					next_TAP_state = `STATE_capture_ir;
 			end
+		
 		`STATE_capture_ir:
 			begin
-			if(dif.tms_pad_i) next_TAP_state = `STATE_exit1_ir; 
-			else next_TAP_state = `STATE_shift_ir;
+				if(dif.tms_pad_i) 
+					next_TAP_state = `STATE_exit1_ir; 
+				else 
+					next_TAP_state = `STATE_shift_ir;
 			end
+		
 		`STATE_shift_ir:
 			begin
-			if(dif.tms_pad_i) next_TAP_state = `STATE_exit1_ir; 
-			else next_TAP_state = `STATE_shift_ir;
+				if(dif.tms_pad_i) 
+					next_TAP_state = `STATE_exit1_ir; 
+				else 
+					next_TAP_state = `STATE_shift_ir;
 			end
+		
 		`STATE_exit1_ir:
 			begin
-			if(dif.tms_pad_i) next_TAP_state = `STATE_update_ir;
-			else next_TAP_state = `STATE_pause_ir;
+				if(dif.tms_pad_i) 
+					next_TAP_state = `STATE_update_ir;
+				else 
+					next_TAP_state = `STATE_pause_ir;
 			end
+		
 		`STATE_pause_ir:
 			begin
-			if(dif.tms_pad_i) next_TAP_state = `STATE_exit2_ir;
-			else next_TAP_state = `STATE_pause_ir;
+				if(dif.tms_pad_i) 
+					next_TAP_state = `STATE_exit2_ir;
+				else 
+					next_TAP_state = `STATE_pause_ir;
 			end
+		
 		`STATE_exit2_ir:
 			begin
-			  if(dif.tms_pad_i) next_TAP_state = `STATE_update_ir;
-			  else next_TAP_state = `STATE_shift_ir;
+				if(dif.tms_pad_i) 
+					next_TAP_state = `STATE_update_ir;
+				else 
+					next_TAP_state = `STATE_shift_ir;
 			end
+		
 		`STATE_update_ir:
 			begin
-			if(dif.tms_pad_i) next_TAP_state = `STATE_select_dr_scan;
-			else next_TAP_state = `STATE_run_test_idle;
+				if(dif.tms_pad_i) 
+					next_TAP_state = `STATE_select_dr_scan;
+				else 
+					next_TAP_state = `STATE_run_test_idle;
 			end
+		
 		default: next_TAP_state = `STATE_test_logic_reset;  // can't actually happen
+
 	endcase
+
 end
 
 
@@ -294,7 +349,7 @@ begin
 	exit2_ir = 1'b0;
 	update_ir = 1'b0;
 
-	//These values are defined as outputs
+	//These values are defined as outputs (not all)
 	case(TAP_state)
 		`STATE_test_logic_reset: test_logic_reset = 1'b1;
 		`STATE_run_test_idle:    run_test_idle = 1'b1;
@@ -316,19 +371,18 @@ begin
 	endcase
 end
 
-//================================================================================//
-//                                                                                 //
-//   End: TAP State Machine                                                        //
-//                                                                                 //
-//================================================================================//
+// ================================================================================ //
+//                                                                                  //
+//   End: TAP State Machine                                                         //
+//                                                                                  //
+// ================================================================================ //
 
 
-
-//================================================================================//
-//                                                                                 //
-//   jtag_ir:  JTAG Instruction Register                                           //
-//                                                                                 //
-//================================================================================//
+// ================================================================================ //
+//                                                                                  //
+//    jtag_ir:  JTAG Instruction Register                                           //
+//                                                                                  //
+// ================================================================================ //
 reg [`IR_LENGTH-1:0]  jtag_ir;          // Instruction register
 reg [`IR_LENGTH-1:0]  latched_jtag_ir; //, latched_jtag_ir_neg;
 wire                  instruction_tdo;
@@ -358,7 +412,6 @@ begin
   else if(update_ir)
     latched_jtag_ir <=#1 jtag_ir;
 end
-
 //================================================================================//
 //                                                                                 //
 //   End: jtag_ir                                                                  //
@@ -446,7 +499,11 @@ begin
     `IDCODE:            idcode_select           = 1'b1;    // ID Code
     `MBIST:             mbist_select            = 1'b1;    // Mbist test
     `DEBUG:             debug_select            = 1'b1;    // Debug
-    `BYPASS:            bypass_select           = 1'b1;    // BYPASS
+    `BYPASS:
+			begin 
+				`uvm_info("DUT", $sformatf("BYPASS"), UVM_MEDIUM)           
+				bypass_select           = 1'b1;    // BYPASS
+			end
     default:            bypass_select           = 1'b1;    // BYPASS
   endcase
 end
@@ -468,12 +525,13 @@ begin
   else
     begin
       case(latched_jtag_ir)    // synthesis parallel_case
-        `IDCODE:            tdo_mux_out = idcode_tdo;       // Reading ID code
+        `IDCODE:            tdo_mux_out = idcode_tdo;       	// Reading ID code
         `DEBUG:             tdo_mux_out = dif.debug_tdo_i;      // Debug
         `SAMPLE_PRELOAD:    tdo_mux_out = dif.bs_chain_tdo_i;   // Sampling/Preloading
         `EXTEST:            tdo_mux_out = dif.bs_chain_tdo_i;   // External test
         `MBIST:             tdo_mux_out = dif.mbist_tdo_i;      // Mbist test
-        default:            tdo_mux_out = bypassed_tdo;     // BYPASS instruction
+		`BYPASS:	  	    tdo_mux_out = bypassed_tdo;			// BYPASS instruction
+        default:            tdo_mux_out = 1'b1;     
       endcase
     end
 end
