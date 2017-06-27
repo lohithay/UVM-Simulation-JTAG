@@ -28,14 +28,19 @@ import uvm_pkg::*;
 
 // ================================================================== //
 //                                                                    //
-// TRANSACTION                                                        //
+// AGENT                                                              //
 //                                                                    //
 // The agent contains sequencer, driver, and monitor (not included)   //
 //                                                                    //
 // ================================================================== //  
-	class my_agent extends uvm_agent;
+class my_agent extends uvm_agent;
 	`uvm_component_utils(my_agent)
 
+	uvm_analysis_port#(my_transaction) agent_ap_before;
+	uvm_analysis_port#(my_transaction) agent_ap_after;
+	
+	jtag_monitor_before  mon_before;
+	jtag_monitor_after   mon_after ;
 	my_driver driver;
 	uvm_sequencer#(my_transaction) sequencer;
 
@@ -45,14 +50,25 @@ import uvm_pkg::*;
 
 	// Build Phase
 	function void build_phase(uvm_phase phase);
-	  driver = my_driver ::type_id::create("driver", this);
-	  sequencer =
-		uvm_sequencer#(my_transaction)::type_id::create("sequencer", this);
-	endfunction    
+		super.build_phase(phase);
+		
+		agent_ap_before = new("agent_ap_before", this);
+		agent_ap_after  = new("agent_ap_after", this);;
+		
+		sequencer = uvm_sequencer#(my_transaction)::type_id::create("sequencer", this);
+		driver = my_driver ::type_id::create("driver", this);
+		mon_before = jtag_monitor_before::type_id::create("mon_before", this);
+		mon_after = jtag_monitor_after::type_id::create("mon_after", this);		
+	endfunction : build_phase
 
 	// Connect Phase
 	function void connect_phase(uvm_phase phase);
-		driver.seq_item_port.connect(sequencer.seq_item_export);
+		super.connect_phase(phase);
+		
+		driver.seq_item_port.connect(sequencer.seq_item_export);		
+		mon_after.mon_ap_after.connect(agent_ap_after);
+		mon_before.mon_ap_before.connect(agent_ap_before);
+		
 	endfunction
 
 	// Run Phase
@@ -66,14 +82,14 @@ import uvm_pkg::*;
 		phase.drop_objection(this);  // We drop objection to allow the test to complete
 	endtask
 
-	endclass: my_agent
-	  
+endclass: my_agent
+	
 // ================================================================== //
 //                                                                    //
 // ENVIRONMENT                                                        //
 //                                                                    //
 // ================================================================== //
-	class my_env extends uvm_env;
+class my_env extends uvm_env;
 	`uvm_component_utils(my_env)
 
 		my_agent agent;
@@ -86,14 +102,14 @@ import uvm_pkg::*;
 			agent = my_agent::type_id::create("agent", this);
 		endfunction
 
-	endclass: my_env
+endclass: my_env
 
 // ================================================================== //
 //                                                                    //
 // MY TEST                                                            //
 //                                                                    //
 // ================================================================== //
-	class my_test extends uvm_test;
+class my_test extends uvm_test;
 	`uvm_component_utils(my_test)
 
 	my_env env;

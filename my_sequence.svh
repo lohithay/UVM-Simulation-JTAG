@@ -20,6 +20,19 @@
 //// - Sequencer                                                   ////
 //// - Driver                                                      ////
 ///////////////////////////////////////////////////////////////////////
+//// Revisions:													   ////
+//// 															   ////
+//// 27 May 2017 - Build - driver, sequencer and DUT. Checked if   ////
+//// 			   the input pins are toggling					   ////
+//// 															   ////
+//// 06 Jun 2017 - The state machine can be changed and controlled ////
+//// 			   using the test sequences. Reached RUN TEST IDLE ////
+//// 			   State.										   ////
+//// 															   ////
+//// 13 Jun 2017 - The BYPASS and the IDCODE instructions are      ////
+//// 			   implemented									   ////
+/////////////////////////////////////////////////////////////////////// 
+
 
 // DEFINE TO TEST WHICH INSTRUCTION TO EXECUTE
 //`define BYPASS_INSTR
@@ -49,7 +62,8 @@ class my_transaction extends uvm_sequence_item;
 	rand bit tms;
 	rand bit tdi;
 	rand bit trstn;
-
+	rand bit tdo;
+	
 	function new (string name = "");
 		super.new(name);
 	endfunction
@@ -182,13 +196,13 @@ class my_driver extends uvm_driver #(my_transaction);
 					@(posedge dut_vif.tck_pad_i);
 				end
 					
-				 4: begin //capture ir state
-					 dut_vif.tms_pad_i = 0;		
-					 `uvm_info("DUT", $sformatf("capture ir state"), UVM_MEDIUM)	
-					 count++;					
-					 seq_item_port.item_done();
-					 @(posedge dut_vif.tck_pad_i);
-				 end
+				4: begin //capture ir state
+					dut_vif.tms_pad_i = 0;		
+					`uvm_info("DUT", $sformatf("capture ir state"), UVM_MEDIUM)	
+					count++;					
+					seq_item_port.item_done();
+					@(posedge dut_vif.tck_pad_i);
+				end
 				 
 				5: begin //SHIFT IR STATE 
 					for(int i=0; i<=2; i++)//SHIFTING THE IR WITH 4 1's
@@ -408,10 +422,6 @@ class my_driver extends uvm_driver #(my_transaction);
 		end //while loop
 		`endif //IDCODE INSTR
 		
-		if(init == 3)
-		begin
-			`uvm_warning("", "TEST COMPLETED!!")
-		end
 		// `ifdef EXTEST_INSTR
 		// `endif EXTEST_INSTR
 		
@@ -421,38 +431,57 @@ class my_driver extends uvm_driver #(my_transaction);
 		// `ifdef SAMPLE_INSTR
 		// `endif SAMPLE_INSTR
 		
-		
-		
-			 
+		if(init == 3)
+		begin
+			`uvm_warning("", "TEST COMPLETED!!")
+		end
+		 
 	endtask
 endclass: my_driver
-/*
+
 // ================================================================== //
 //                                                                    //
 // MONITOR_BEFORE                                                     //
 //                                                                    //
 // ================================================================== //
 class jtag_monitor_before extends uvm_monitor;
-     `uvm_component_utils(jtag_monitor_before)
+	`uvm_component_utils(jtag_monitor_before)
  
-     uvm_analysis_port#(my_transaction) mon_ap_before;
+	uvm_analysis_port#(my_transaction) mon_ap_before;
  
-     virtual dut_if vif;
+	virtual dut_if dut_vif;
+	
+	reg [1:0] clock_value ;
+
+	function new(string name, uvm_component parent);
+		super.new(name, parent);
+		//mon_ap_before = new("mon_ap_before", this);
+	endfunction: new
  
-     function new(string name, uvm_component parent);
-          super.new(name, parent);
-     endfunction: new
- 
-     function void build_phase(uvm_phase phase);
-          super.build_phase(phase);
- 
-          void'(uvm_resource_db#(virtual dut_if)::read_by_name (.scope("ifs"), .name("dut_if"), .val(vif)));
-          mon_ap_before = new(.name("mon_ap_before"), .parent(this));
-     endfunction: build_phase
- 
-     task run_phase(uvm_phase phase);
-          
-     endtask: run_phase
+	function void build_phase(uvm_phase phase);
+		super.build_phase(phase);
+		mon_ap_before = new("mon_ap_before", this);		  
+		if (! uvm_config_db #(virtual dut_if) :: get (this, "", "dut_vif", dut_vif)) begin
+         `uvm_error (get_type_name (), "DUT interface not found")
+      end         
+	endfunction: build_phase
+
+	task run_phase(uvm_phase phase);
+		my_transaction sa_tx;
+		sa_tx = my_transaction::type_id::create(.name("sa_tx"), .contxt(get_full_name()));
+
+		forever begin
+			@(posedge dut_vif.tdi_pad_i)
+			begin
+				sa_tx.tdi = dut_vif.tdi_pad_i;
+				mon_ap_before.write(sa_tx);
+		
+				//Can be removed :)
+				`uvm_warning("", "Monitor write before complete!")
+			end
+		end
+	endtask: run_phase
+	
 endclass: jtag_monitor_before
 
 // ================================================================== //
@@ -461,29 +490,193 @@ endclass: jtag_monitor_before
 //                                                                    //
 // ================================================================== //
 class jtag_monitor_after extends uvm_monitor;
-     `uvm_component_utils(jtag_monitor_after)
+	`uvm_component_utils(jtag_monitor_after)
  
-     uvm_analysis_port#(my_transaction) mon_ap_after;
+	uvm_analysis_port#(my_transaction) mon_ap_after;
  
-     virtual dut_if vif;
- 
-     function new(string name, uvm_component parent);
-          super.new(name, parent);
-     endfunction: new
- 
-     function void build_phase(uvm_phase phase);
-          super.build_phase(phase);
- 
-          void'(uvm_resource_db#(virtual dut_if)::read_by_name (.scope("ifs"), .name("dut_if"), .val(vif)));
-          mon_ap_after = new(.name("mon_ap_before"), .parent(this));
-     endfunction: build_phase
- 
-     task run_phase(uvm_phase phase);
-          
-     endtask: run_phase
+	virtual dut_if dut_vif;
+
+	reg [1:0] clock_value ;
+
+	function new(string name, uvm_component parent);
+		super.new(name, parent);
+	endfunction: new
+
+	function void build_phase(uvm_phase phase);
+		super.build_phase(phase);
+		mon_ap_after = new(.name("mon_ap_before"), .parent(this));
+		if (! uvm_config_db #(virtual dut_if) :: get (this, "", "dut_vif", dut_vif)) 
+		begin
+         `uvm_error (get_type_name (), "DUT interface not found")		
+        end
+	endfunction: build_phase
+
+	task run_phase(uvm_phase phase);
+		my_transaction sa_tx_after;
+		sa_tx_after = my_transaction::type_id::create(.name("sa_tx_after"), .contxt(get_full_name()));
+
+	forever begin
+		//@(posedge dut_vif.tck_pad_i); //Write to scoreboard 
+		@(posedge dut_vif.tdo_pad_o)
+		begin
+			sa_tx_after.tdo = dut_vif.tdo_pad_o;
+			mon_ap_after.write(sa_tx_after);
+
+			//Can be removed :)
+			`uvm_warning("", "Monitor write after complete!")
+		end
+	end
+	endtask: run_phase
 endclass: jtag_monitor_after
+
+/*
+	 //////////////////////////////////
+	 class simpleadder_monitor_after extends uvm_monitor;
+	`uvm_component_utils(simpleadder_monitor_after)
+
+	uvm_analysis_port#(simpleadder_transaction) mon_ap_after;
+
+	virtual simpleadder_if vif;
+
+	simpleadder_transaction sa_tx;
+	
+	//For coverage
+	simpleadder_transaction sa_tx_cg;
+
+	//Define coverpoints
+	covergroup simpleadder_cg;
+      		ina_cp:     coverpoint sa_tx_cg.ina;
+      		inb_cp:     coverpoint sa_tx_cg.inb;
+		cross ina_cp, inb_cp;
+	endgroup: simpleadder_cg
+
+	function new(string name, uvm_component parent);
+		super.new(name, parent);
+		simpleadder_cg = new;
+	endfunction: new
+
+	function void build_phase(uvm_phase phase);
+		super.build_phase(phase);
+
+		void'(uvm_resource_db#(virtual simpleadder_if)::read_by_name
+			(.scope("ifs"), .name("simpleadder_if"), .val(vif)));
+		mon_ap_after= new(.name("mon_ap_after"), .parent(this));
+	endfunction: build_phase
+
+	task run_phase(uvm_phase phase);
+		integer counter_mon = 0, state = 0;
+		sa_tx = simpleadder_transaction::type_id::create
+			(.name("sa_tx"), .contxt(get_full_name()));
+
+		forever begin
+			@(posedge vif.sig_clock)
+			begin
+				if(vif.sig_en_i==1'b1)
+				begin
+					state = 1;
+					sa_tx.ina = 2'b00;
+					sa_tx.inb = 2'b00;
+					sa_tx.out = 3'b000;
+				end
+
+				if(state==1)
+				begin
+					sa_tx.ina = sa_tx.ina << 1;
+					sa_tx.inb = sa_tx.inb << 1;
+
+					sa_tx.ina[0] = vif.sig_ina;
+					sa_tx.inb[0] = vif.sig_inb;
+
+					counter_mon = counter_mon + 1;
+
+					if(counter_mon==2)
+					begin
+						state = 0;
+						counter_mon = 0;
+
+						//Predict the result
+						predictor();
+						sa_tx_cg = sa_tx;
+
+						//Coverage
+						simpleadder_cg.sample();
+
+						//Send the transaction to the analysis port
+						mon_ap_after.write(sa_tx);
+					end
+				end
+			end
+		end
+	endtask: run_phase
+
+	virtual function void predictor();
+		sa_tx.out = sa_tx.ina + sa_tx.inb;
+	endfunction: predictor
+endclass: simpleadder_monitor_after
+	 
+	 /////////////////////////////////
+	
+
+// ================================================================== //
+//                                                                    //
+// SCOREBOARD                                                         //
+//                                                                    //
+// ================================================================== //
+class jtag_scoreboard extends uvm_scoreboard;
+	`uvm_component_utils(jtag_scoreboard)
+	
+	uvm_analysis_export #(my_transaction) sb_export_before;
+	uvm_analysis_export #(my_transaction) sb_export_after;
+	
+	uvm_tlm_analysis_fifo #(my_transaction) before_fifo;
+	uvm_tlm_analysis_fifo #(my_transaction) after_fifo;
+	
+	my_transaction transaction_before;
+	my_transaction transaction_after;
+	
+	function new(string name, uvm_component parent);
+		super.new(name, parent);
+		transaction_before = new("transaction_before");
+		transaction_after = new("transaction_after");
+	endfunction: new
+	
+	function void build_phase(uvm_phase phase);
+		super.build_phase(phase);
+		sb_export_before = new("sb_export_before", this);
+		sb_export_after  = new("sb_export_after",  this);
+		
+		before_fifo = new("before_fifo", this);
+		after_fifo  = new("after_fifo",  this);
+	endfunction: build_phase
+	
+	function void connect_phase(uvm_phase phase);
+		sb_export_before.connect(before_fifo.analysis_export);
+		sb_export_after.connect(after_fifo.analysis_export);
+	endfunction: connect_phase
+	
+	task run();
+		forever begin
+			before_fifo.get(transaction_before);
+			after_fifo.get(transaction_after);
+			//compare();
+		end
+	endtask: run
+	/*
+	virtual function void compare();
+		if(transaction_before.out == transaction_after.out)
+		begin
+			`uvm_info("compare", {"Test: OK"}, UVM_LOW);
+		end
+		else
+		begin
+			`uvm_info("compare", {"Test: Fail"}, UVM_LOW);
+		end
+	endfunction: compare
+
+endclass: jtag_scoreboard
 */
 
 
+
 // OFFLINE CHANGES MADE:
-// Lots! Verify if they work!
+// Monitor and the scoreboard have been added
