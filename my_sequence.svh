@@ -35,15 +35,22 @@
 
 
 // DEFINE TO TEST WHICH INSTRUCTION TO EXECUTE
-//`define BYPASS_INSTR
-`define IDCODE_INSTR
+`define BYPASS_INSTR
+//`define IDCODE_INSTR
 //`define SAMPLE_INSTR
 //`define EXTEST_INSTR
 //`define INTEST_INSTR
 
+//Enter the length of the expected datastream
+`define DATA_LENGTH 30
+
 // Imports
 import uvm_pkg::*;
 `include "uvm_macros.svh"
+
+bit startValiadation = 0;
+
+
 // ================================================================== //
 //                                                                    //
 // TRANSACTION                                                        //
@@ -52,12 +59,6 @@ import uvm_pkg::*;
 class my_transaction extends uvm_sequence_item;
 
 	`uvm_object_utils(my_transaction)
-	//rand bit cmd;
-	//rand int addr;
-	//rand int data;
-
-	//constraint c_addr { addr >= 0; addr < 256; }
-	//constraint c_data { data >= 0; data < 256; }
 
 	rand bit tms;
 	rand bit tdi;
@@ -84,22 +85,15 @@ class my_sequence extends uvm_sequence#(my_transaction);
 	endfunction
 
 	task body;
-		repeat(100)
+		repeat(80)
 		begin
 			req = my_transaction::type_id::create("req");
-			start_item(req);
 
+			start_item(req);
 			if(!req.randomize())
 			begin
 				`uvm_warning("", "Randomization failed!")
 			end
-			// If using ModelSim, which does not support randomize(),
-			// we must randomize item using traditional methods, like
-			//       req.cmd = $urandom;
-			//       req.addr = $urandom_range(0, 255);
-			//       req.data = $urandom_range(0, 255);
-
-			//`uvm_warning("", "Sequence sent!")
 			finish_item(req);  // Waiting for the driver to send the item_done() command
 		end
 	endtask: body
@@ -157,11 +151,11 @@ class my_driver extends uvm_driver #(my_transaction);
 			case(count)
 				
 				0: begin //Test Logic Reset STATE
-					if(dut_vif.test_logic_reset_o) // The DUT enters the Test Logic Reset STATE
+					if(dut_vif.test_logic_reset_o) //The DUT enters the Test Logic Reset STATE
 					begin
-						dut_vif.tdi_pad_i = 1;//Initializing the input port to 1'b1
+						dut_vif.tdi_pad_i = 1; //Initializing the input port to 1'b1
 						dut_vif.tms_pad_i = 0;
-						`uvm_info("DUT", $sformatf("Test Logic Reset STATE"), UVM_MEDIUM)
+						//`uvm_info("DUT", $sformatf("Test Logic Reset STATE"), UVM_MEDIUM)
 						count++;
 					end
 					seq_item_port.item_done();
@@ -171,8 +165,7 @@ class my_driver extends uvm_driver #(my_transaction);
 				1: begin //Run Test Idle STATE
 					if(dut_vif.run_test_idle_o)// The DUT enters the Run Test Idle STATE
 					begin	
-						dut_vif.tms_pad_i = 1;
-						`uvm_info("DUT", $sformatf("Run Test Idle STATE"), UVM_MEDIUM)	
+						dut_vif.tms_pad_i = 1;	
 						count++;
 						//complete = 1; //process completed				
 					end		
@@ -181,8 +174,7 @@ class my_driver extends uvm_driver #(my_transaction);
 				end
 				
 				2: begin //Select DR Scan STATE
-					dut_vif.tms_pad_i = 1;		
-					`uvm_info("DUT", $sformatf("Select DR Scan STATE"), UVM_MEDIUM)	
+					dut_vif.tms_pad_i = 1;			
 					count++;					
 					seq_item_port.item_done();
 					@(posedge dut_vif.tck_pad_i);
@@ -190,7 +182,6 @@ class my_driver extends uvm_driver #(my_transaction);
 					
 				3: begin //Select IR Scan STATE		
 					dut_vif.tms_pad_i = 0;		
-					`uvm_info("DUT", $sformatf("Select IR Scan STATE"), UVM_MEDIUM)	
 					count++;					
 					seq_item_port.item_done();
 					@(posedge dut_vif.tck_pad_i);
@@ -198,7 +189,6 @@ class my_driver extends uvm_driver #(my_transaction);
 					
 				4: begin //capture ir state
 					dut_vif.tms_pad_i = 0;		
-					`uvm_info("DUT", $sformatf("capture ir state"), UVM_MEDIUM)	
 					count++;					
 					seq_item_port.item_done();
 					@(posedge dut_vif.tck_pad_i);
@@ -211,7 +201,6 @@ class my_driver extends uvm_driver #(my_transaction);
 						
 						dut_vif.tms_pad_i = 0;		
 						dut_vif.tdi_pad_i = 1;		
-						`uvm_info("DUT", $sformatf("Shift IR STATE"), UVM_MEDIUM)	
 						//count++;					
 						seq_item_port.item_done();
 						@(posedge dut_vif.tck_pad_i);
@@ -221,7 +210,6 @@ class my_driver extends uvm_driver #(my_transaction);
 					count++;
 					seq_item_port.get_next_item(req);
 					dut_vif.tms_pad_i = 1;		
-					//`uvm_info("DUT", $sformatf("Shift IR STATE"), UVM_MEDIUM)	
 					//count++;					
 					seq_item_port.item_done();
 					@(posedge dut_vif.tck_pad_i);
@@ -230,23 +218,20 @@ class my_driver extends uvm_driver #(my_transaction);
 					 
 				6: begin //EXIT1 IR STATE 
 						dut_vif.tms_pad_i = 1;		
-						`uvm_info("DUT", $sformatf("EXIT1 IR STATE"), UVM_MEDIUM)	
 						count++;					
 						seq_item_port.item_done();
 						@(posedge dut_vif.tck_pad_i);			
 				 end
 				 
 				 7: begin //UPDATE IR STATE 
-						dut_vif.tms_pad_i = 1;		
-						`uvm_info("DUT", $sformatf("UPDATE IR STATE"), UVM_MEDIUM)	
+						dut_vif.tms_pad_i = 1;			
 						count++;
 						seq_item_port.item_done();
 						@(posedge dut_vif.tck_pad_i);			
 				 end
 				 
 				 8: begin //SELECT DR STATE 
-						dut_vif.tms_pad_i = 0;		
-						`uvm_info("DUT", $sformatf("SELECT DR STATE"), UVM_MEDIUM)	
+						dut_vif.tms_pad_i = 0;			
 						count++;
 						seq_item_port.item_done();
 						@(posedge dut_vif.tck_pad_i);			
@@ -254,30 +239,24 @@ class my_driver extends uvm_driver #(my_transaction);
 
 				 9: begin //CAPTURE DR STATE 
 						dut_vif.tms_pad_i = 0;		
-						`uvm_info("DUT", $sformatf("CAPTURE DR STATE"), UVM_MEDIUM)	
 						count++;
 						seq_item_port.item_done();
 						@(posedge dut_vif.tck_pad_i);			
 				 end
 				 
 				 10: begin //SHIFT DR STATE 
-						for(int i=0; i<=10; i++)//TDI to TDO via BYPASS Register x10
+				 		startValiadation = 1;
+						for(int i=0; i<=30; i++)//TDI to TDO via BYPASS Register x10
 						begin
 							if(i!=0)  seq_item_port.get_next_item(req);
 							dut_vif.tms_pad_i = 0;	
 							dut_vif.tdi_pad_i = req.tdi;
-							`uvm_info("DUT", $sformatf("SHIFT DR STATE"), UVM_MEDIUM)	
 							`uvm_info("DUT", $sformatf("Received TDI=%b, TDO=%b", dut_vif.tdi_pad_i, dut_vif.tdo_pad_o), UVM_MEDIUM)							
 							seq_item_port.item_done();
 							@(posedge dut_vif.tck_pad_i);			
 						end 
 						count++;
-				 end
-				 
-				 11: begin
-						seq_item_port.item_done();
-						@(posedge dut_vif.tck_pad_i);
-						count++;
+						init++;
 				 end
 
 				default: break;
@@ -295,7 +274,7 @@ class my_driver extends uvm_driver #(my_transaction);
 					if(dut_vif.test_logic_reset_o) // The DUT enters the Test Logic Reset STATE
 					begin
 						dut_vif.tms_pad_i = 0;
-						`uvm_info("DUT", $sformatf("Test Logic Reset STATE"), UVM_MEDIUM)
+						//`uvm_info("DUT", $sformatf("Test Logic Reset STATE"), UVM_MEDIUM)
 						count++;
 					end
 					seq_item_port.item_done();
@@ -305,8 +284,7 @@ class my_driver extends uvm_driver #(my_transaction);
 				1: begin //Run Test Idle STATE
 					if(dut_vif.run_test_idle_o)// The DUT enters the Run Test Idle STATE
 					begin	
-						dut_vif.tms_pad_i = 1;
-						`uvm_info("DUT", $sformatf("Run Test Idle STATE"), UVM_MEDIUM)	
+						dut_vif.tms_pad_i = 1;	
 						count++;
 						//complete = 1; //process completed				
 					end		
@@ -315,8 +293,7 @@ class my_driver extends uvm_driver #(my_transaction);
 				end
 				
 				2: begin //Select DR Scan STATE
-					dut_vif.tms_pad_i = 1;		
-					`uvm_info("DUT", $sformatf("Select DR Scan STATE"), UVM_MEDIUM)	
+					dut_vif.tms_pad_i = 1;			
 					count++;					
 					seq_item_port.item_done();
 					@(posedge dut_vif.tck_pad_i);
@@ -325,7 +302,6 @@ class my_driver extends uvm_driver #(my_transaction);
 				3: begin //Select IR Scan STATE		
 					dut_vif.tms_pad_i = 0;
 					dut_vif.tdi_pad_i = 0; //For the first bit that will be shifted into the Instruction Register
-					`uvm_info("DUT", $sformatf("Select IR Scan STATE"), UVM_MEDIUM)	
 					count++;					
 					seq_item_port.item_done();
 					@(posedge dut_vif.tck_pad_i);
@@ -333,7 +309,6 @@ class my_driver extends uvm_driver #(my_transaction);
 					
 				 4: begin //capture ir state
 					 dut_vif.tms_pad_i = 0;		
-					 `uvm_info("DUT", $sformatf("capture ir state"), UVM_MEDIUM)	
 					 count++;					
 					 seq_item_port.item_done();
 					 @(posedge dut_vif.tck_pad_i);
@@ -347,7 +322,6 @@ class my_driver extends uvm_driver #(my_transaction);
 						if(i==0) dut_vif.tdi_pad_i = 0;		
 						else if(i==1) dut_vif.tdi_pad_i = 1;
 						else if(i==2) dut_vif.tdi_pad_i = 0;
-						`uvm_info("DUT", $sformatf("Shift IR STATE"), UVM_MEDIUM)	
 						//count++;					
 						seq_item_port.item_done();
 						@(posedge dut_vif.tck_pad_i);
@@ -357,7 +331,6 @@ class my_driver extends uvm_driver #(my_transaction);
 					count++;
 					seq_item_port.get_next_item(req);
 					dut_vif.tms_pad_i = 1;		
-					//`uvm_info("DUT", $sformatf("Shift IR STATE"), UVM_MEDIUM)	
 					//count++;					
 					seq_item_port.item_done();
 					@(posedge dut_vif.tck_pad_i);
@@ -366,7 +339,6 @@ class my_driver extends uvm_driver #(my_transaction);
 					 
 				6: begin //EXIT1 IR STATE 
 						dut_vif.tms_pad_i = 1;		
-						`uvm_info("DUT", $sformatf("EXIT1 IR STATE"), UVM_MEDIUM)	
 						count++;					
 						seq_item_port.item_done();
 						@(posedge dut_vif.tck_pad_i);			
@@ -374,23 +346,20 @@ class my_driver extends uvm_driver #(my_transaction);
 				 
 				 7: begin //UPDATE IR STATE 
 						dut_vif.tms_pad_i = 1;		
-						`uvm_info("DUT", $sformatf("UPDATE IR STATE"), UVM_MEDIUM)	
 						count++;
 						seq_item_port.item_done();
 						@(posedge dut_vif.tck_pad_i);			
 				 end
 				 
 				 8: begin //SELECT DR STATE 
-						dut_vif.tms_pad_i = 0;		
-						`uvm_info("DUT", $sformatf("SELECT DR STATE"), UVM_MEDIUM)	
+						dut_vif.tms_pad_i = 0;			
 						count++;
 						seq_item_port.item_done();
 						@(posedge dut_vif.tck_pad_i);			
 				 end
 
 				 9: begin //CAPTURE DR STATE 
-						dut_vif.tms_pad_i = 0;		
-						`uvm_info("DUT", $sformatf("CAPTURE DR STATE"), UVM_MEDIUM)	
+						dut_vif.tms_pad_i = 0;			
 						count++;
 						seq_item_port.item_done();
 						@(posedge dut_vif.tck_pad_i);			
@@ -402,7 +371,6 @@ class my_driver extends uvm_driver #(my_transaction);
 							if(i!=0)  seq_item_port.get_next_item(req);
 							dut_vif.tms_pad_i = 0;	
 							dut_vif.tdi_pad_i = req.tdi;
-							`uvm_info("DUT", $sformatf("SHIFT DR STATE"), UVM_MEDIUM)	
 							`uvm_info("DUT", $sformatf("TDO=%b", dut_vif.tdo_pad_o), UVM_MEDIUM	)						
 							seq_item_port.item_done();
 							@(posedge dut_vif.tck_pad_i);			
@@ -431,12 +399,29 @@ class my_driver extends uvm_driver #(my_transaction);
 		// `ifdef SAMPLE_INSTR
 		// `endif SAMPLE_INSTR
 		
-		if(init == 3)
+		if(init == 2)
 		begin
 			`uvm_warning("", "TEST COMPLETED!!")
+			report_phase(phase);
 		end
-		 
 	endtask
+
+	function void report_phase(uvm_phase phase);
+		uvm_report_server svr;
+		super.report_phase(phase);
+
+		svr = uvm_report_server::get_server();
+		if(svr.get_severity_count(UVM_FATAL)+svr.get_severity_count(UVM_ERROR)>0) begin
+			`uvm_info(get_type_name(), "---------------------------------------", UVM_NONE)
+			`uvm_info(get_type_name(), "----       ERRORS EXIST            ----", UVM_NONE)
+			`uvm_info(get_type_name(), "---------------------------------------", UVM_NONE)
+		end
+		else begin
+			`uvm_info(get_type_name(), "---------------------------------------", UVM_NONE)
+			`uvm_info(get_type_name(), "----      NO ERRORS EXIST          ----", UVM_NONE)
+			`uvm_info(get_type_name(), "---------------------------------------", UVM_NONE)
+		end
+	endfunction
 endclass: my_driver
 
 // ================================================================== //
@@ -455,33 +440,37 @@ class jtag_monitor_before extends uvm_monitor;
 
 	function new(string name, uvm_component parent);
 		super.new(name, parent);
-		//mon_ap_before = new("mon_ap_before", this);
 	endfunction: new
  
 	function void build_phase(uvm_phase phase);
 		super.build_phase(phase);
 		mon_ap_before = new("mon_ap_before", this);		  
 		if (! uvm_config_db #(virtual dut_if) :: get (this, "", "dut_vif", dut_vif)) begin
-         `uvm_error (get_type_name (), "DUT interface not found")
-      end         
+        	`uvm_error (get_type_name (), "DUT interface not found")
+      	end         
 	endfunction: build_phase
 
 	task run_phase(uvm_phase phase);
 		my_transaction sa_tx;
 		sa_tx = my_transaction::type_id::create(.name("sa_tx"), .contxt(get_full_name()));
 
+		//Writing the data at every toggling of the TDI pin
 		forever begin
-			@(posedge dut_vif.tdi_pad_i)
+			if(startValiadation)
 			begin
-				sa_tx.tdi = dut_vif.tdi_pad_i;
-				mon_ap_before.write(sa_tx);
-		
-				//Can be removed :)
-				`uvm_warning("", "Monitor write before complete!")
+				@(posedge dut_vif.tdi_pad_i)
+				begin
+					sa_tx.tdi = dut_vif.tdi_pad_i;
+					mon_ap_before.write(sa_tx);
+				end
+				@(negedge dut_vif.tdi_pad_i)
+				begin
+					sa_tx.tdi = dut_vif.tdi_pad_i;
+					mon_ap_before.write(sa_tx);
+				end
 			end
 		end
 	endtask: run_phase
-	
 endclass: jtag_monitor_before
 
 // ================================================================== //
@@ -515,107 +504,26 @@ class jtag_monitor_after extends uvm_monitor;
 		my_transaction sa_tx_after;
 		sa_tx_after = my_transaction::type_id::create(.name("sa_tx_after"), .contxt(get_full_name()));
 
-	forever begin
-		//@(posedge dut_vif.tck_pad_i); //Write to scoreboard 
-		@(posedge dut_vif.tdo_pad_o)
-		begin
-			sa_tx_after.tdo = dut_vif.tdo_pad_o;
-			mon_ap_after.write(sa_tx_after);
-
-			//Can be removed :)
-			`uvm_warning("", "Monitor write after complete!")
-		end
-	end
-	endtask: run_phase
-endclass: jtag_monitor_after
-
-/*
-	 //////////////////////////////////
-	 class simpleadder_monitor_after extends uvm_monitor;
-	`uvm_component_utils(simpleadder_monitor_after)
-
-	uvm_analysis_port#(simpleadder_transaction) mon_ap_after;
-
-	virtual simpleadder_if vif;
-
-	simpleadder_transaction sa_tx;
-	
-	//For coverage
-	simpleadder_transaction sa_tx_cg;
-
-	//Define coverpoints
-	covergroup simpleadder_cg;
-      		ina_cp:     coverpoint sa_tx_cg.ina;
-      		inb_cp:     coverpoint sa_tx_cg.inb;
-		cross ina_cp, inb_cp;
-	endgroup: simpleadder_cg
-
-	function new(string name, uvm_component parent);
-		super.new(name, parent);
-		simpleadder_cg = new;
-	endfunction: new
-
-	function void build_phase(uvm_phase phase);
-		super.build_phase(phase);
-
-		void'(uvm_resource_db#(virtual simpleadder_if)::read_by_name
-			(.scope("ifs"), .name("simpleadder_if"), .val(vif)));
-		mon_ap_after= new(.name("mon_ap_after"), .parent(this));
-	endfunction: build_phase
-
-	task run_phase(uvm_phase phase);
-		integer counter_mon = 0, state = 0;
-		sa_tx = simpleadder_transaction::type_id::create
-			(.name("sa_tx"), .contxt(get_full_name()));
-
 		forever begin
-			@(posedge vif.sig_clock)
+			if(startValiadation)
 			begin
-				if(vif.sig_en_i==1'b1)
+				//Writing the data at every toggling of the TDO pin
+				@(posedge dut_vif.tdo_pad_o)
 				begin
-					state = 1;
-					sa_tx.ina = 2'b00;
-					sa_tx.inb = 2'b00;
-					sa_tx.out = 3'b000;
+					sa_tx_after.tdo = dut_vif.tdo_pad_o;
+					mon_ap_after.write(sa_tx_after);
 				end
-
-				if(state==1)
+				@(negedge dut_vif.tdo_pad_o)
 				begin
-					sa_tx.ina = sa_tx.ina << 1;
-					sa_tx.inb = sa_tx.inb << 1;
-
-					sa_tx.ina[0] = vif.sig_ina;
-					sa_tx.inb[0] = vif.sig_inb;
-
-					counter_mon = counter_mon + 1;
-
-					if(counter_mon==2)
-					begin
-						state = 0;
-						counter_mon = 0;
-
-						//Predict the result
-						predictor();
-						sa_tx_cg = sa_tx;
-
-						//Coverage
-						simpleadder_cg.sample();
-
-						//Send the transaction to the analysis port
-						mon_ap_after.write(sa_tx);
-					end
+					sa_tx_after.tdo = dut_vif.tdo_pad_o;
+					mon_ap_after.write(sa_tx_after);
 				end
 			end
 		end
 	endtask: run_phase
+endclass: jtag_monitor_after
 
-	virtual function void predictor();
-		sa_tx.out = sa_tx.ina + sa_tx.inb;
-	endfunction: predictor
-endclass: simpleadder_monitor_after
-	 
-	 /////////////////////////////////
-	
+
 
 // ================================================================== //
 //                                                                    //
@@ -656,9 +564,14 @@ class jtag_scoreboard extends uvm_scoreboard;
 	
 	task run();
 		forever begin
-			before_fifo.get(transaction_before);
-			after_fifo.get(transaction_after);
-			//compare();
+			if(startValiadation)
+			begin
+				before_fifo.get(transaction_before);
+				after_fifo.get(transaction_after);
+				//`uvm_info(get_type_name(),$sformatf("Expected Data: %0h Actual Data: %0h",sc_mem[mem_pkt.addr],mem_pkt.rdata),UVM_LOW)
+				`uvm_warning("", "Got into FIFO!")
+				//compare();
+			end
 		end
 	endtask: run
 	/*
@@ -672,9 +585,9 @@ class jtag_scoreboard extends uvm_scoreboard;
 			`uvm_info("compare", {"Test: Fail"}, UVM_LOW);
 		end
 	endfunction: compare
-
-endclass: jtag_scoreboard
 */
+endclass: jtag_scoreboard
+
 
 
 

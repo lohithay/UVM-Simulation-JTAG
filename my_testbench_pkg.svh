@@ -63,12 +63,10 @@ class my_agent extends uvm_agent;
 
 	// Connect Phase
 	function void connect_phase(uvm_phase phase);
-		super.connect_phase(phase);
-		
+		super.connect_phase(phase);		
 		driver.seq_item_port.connect(sequencer.seq_item_export);		
 		mon_after.mon_ap_after.connect(agent_ap_after);
-		mon_before.mon_ap_before.connect(agent_ap_before);
-		
+		mon_before.mon_ap_before.connect(agent_ap_before);		
 	endfunction
 
 	// Run Phase
@@ -93,14 +91,21 @@ class my_env extends uvm_env;
 	`uvm_component_utils(my_env)
 
 		my_agent agent;
+		jtag_scoreboard mem_scb;
 
 		function new(string name, uvm_component parent);
 			super.new(name, parent);
 		endfunction
 		
 		function void build_phase(uvm_phase phase);
-			agent = my_agent::type_id::create("agent", this);
+			agent   = my_agent::type_id::create("agent", this);
+			mem_scb = jtag_scoreboard::type_id::create("mem_scb", this);
 		endfunction
+
+		function void connect_phase(uvm_phase phase);
+			agent.mon_before.mon_ap_before.connect(mem_scb.sb_export_before);
+			agent.mon_after.mon_ap_after.connect(mem_scb.sb_export_after);
+		endfunction : connect_phase
 
 endclass: my_env
 
@@ -128,7 +133,7 @@ class my_test extends uvm_test;
 		`uvm_warning("", "Task Started! Ready for Lift-off!")
 		phase.drop_objection(this);  // We drop objection to allow the test to complete
 	endtask
-
-	endclass: my_test
+    
+endclass: my_test
  
 endpackage

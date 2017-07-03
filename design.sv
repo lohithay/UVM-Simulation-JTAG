@@ -164,13 +164,11 @@ always @ (posedge dif.tck_pad_i or negedge dif.trstn_pad_i)
 begin
 	if(dif.trstn_pad_i == 0)
         begin 
-		TAP_state = `STATE_test_logic_reset;
-		`uvm_info("DUT", $sformatf("design.sv: RESET RECIEVED"), UVM_MEDIUM)	
+		TAP_state = `STATE_test_logic_reset;	
 	end
 	else
 	begin
 		TAP_state = next_TAP_state;
-		//`uvm_info("DUT", $sformatf("design.sv: NEXT STATE"), UVM_MEDIUM)
 	end
 end
 
@@ -192,7 +190,6 @@ begin
 				else 
 				begin
 					next_TAP_state = `STATE_run_test_idle;
-					`uvm_info("DUT", $sformatf("design.sv: Run Test Idle STATE"), UVM_MEDIUM)
 				end
 			end
 			
@@ -201,7 +198,6 @@ begin
 			if(dif.tms_pad_i) 
 				begin
 					next_TAP_state = `STATE_select_dr_scan; 
-					`uvm_info("DUT", $sformatf("SELECT_DR_SCAN STATE"), UVM_MEDIUM)
 				end
 			else
 				begin			
@@ -499,11 +495,7 @@ begin
     `IDCODE:            idcode_select           = 1'b1;    // ID Code
     `MBIST:             mbist_select            = 1'b1;    // Mbist test
     `DEBUG:             debug_select            = 1'b1;    // Debug
-    `BYPASS:
-			begin 
-				`uvm_info("DUT", $sformatf("BYPASS"), UVM_MEDIUM)           
-				bypass_select           = 1'b1;    // BYPASS
-			end
+    `BYPASS:			bypass_select           = 1'b1;    // BYPASS
     default:            bypass_select           = 1'b1;    // BYPASS
   endcase
 end
