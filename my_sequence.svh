@@ -35,20 +35,30 @@
 
 
 // DEFINE TO TEST WHICH INSTRUCTION TO EXECUTE
+
 `define BYPASS_INSTR
 //`define IDCODE_INSTR
 //`define SAMPLE_INSTR
 //`define EXTEST_INSTR
 //`define INTEST_INSTR
 
-//Enter the length of the expected datastream
-`define DATA_LENGTH 30
+//GLOBAL VARIABLE Declaration
+
+integer DATA_LENGTH = 30;  //Enter the length of the expected datastream for BYPASS Instruction
+bit introduceErrorBypass = 0; 
+bit introduceErrorIdcode = 0;
+
+
+bit startValiadation = 0;  //Indicates when the data has to be checked
+bit validationBufferTDI [100];
+bit validationBufferTDO [100];
+
 
 // Imports
 import uvm_pkg::*;
 `include "uvm_macros.svh"
+`include "tap_defines.v"
 
-bit startValiadation = 0;
 
 
 // ================================================================== //
@@ -246,7 +256,7 @@ class my_driver extends uvm_driver #(my_transaction);
 				 
 				 10: begin //SHIFT DR STATE 
 				 		startValiadation = 1;
-						for(int i=0; i<=30; i++)//TDI to TDO via BYPASS Register x10
+						for(int i=0; i<=DATA_LENGTH; i++)//TDI to TDO via BYPASS Register x10
 						begin
 							if(i!=0)  seq_item_port.get_next_item(req);
 							dut_vif.tms_pad_i = 0;	
@@ -366,12 +376,15 @@ class my_driver extends uvm_driver #(my_transaction);
 				 end
 				 
 				 10: begin //SHIFT DR STATE 
-						for(int i=0; i<=31; i++)//Shfting out the 32 bit IDCODE
+				 	startValiadation = 1;
+						for(int i=0; i<=32; i++)//Shfting out the 32 bit IDCODE
 						begin
 							if(i!=0)  seq_item_port.get_next_item(req);
 							dut_vif.tms_pad_i = 0;	
-							dut_vif.tdi_pad_i = req.tdi;
-							`uvm_info("DUT", $sformatf("TDO=%b", dut_vif.tdo_pad_o), UVM_MEDIUM	)						
+							dut_vif.tdi_pad_i = 0;
+							if(introduceErrorIdcode && i>10 && i<15)
+								dut_vif.tdo_pad_o = 1;
+							//`uvm_info("DUT", $sformatf("TDO=%b", dut_vif.tdo_pad_o), UVM_MEDIUM	)						
 							seq_item_port.item_done();
 							@(posedge dut_vif.tck_pad_i);			
 						end 
@@ -402,9 +415,50 @@ class my_driver extends uvm_driver #(my_transaction);
 		if(init == 2)
 		begin
 			`uvm_warning("", "TEST COMPLETED!!")
+			`ifdef BYPASS_INSTR compareForBypass(); `endif
+			`ifdef IDCODE_INSTR compareForIdcode(); `endif
 			report_phase(phase);
 		end
 	endtask
+
+
+	virtual function void compareForBypass();
+		for(integer m=0; m<DATA_LENGTH; m++)
+		begin
+			if(validationBufferTDI[m]==validationBufferTDO[m+1])
+			begin
+				`uvm_warning("compareForBypass", "SAME" )
+				$display("TDI= %b TDO=%b ",validationBufferTDI[m], validationBufferTDO[m+1] );
+
+			end
+			else
+			begin
+				`uvm_error("compareForBypass", "DIFFERENT")
+				$display("TDI= %b TDO=%b ",validationBufferTDI[m], validationBufferTDO[m+1] );
+			end
+		end
+	endfunction: compareForBypass
+
+	virtual function void compareForIdcode();
+		bit [31:0] EXPECTED = `IDCODE_VALUE;
+		bit [31:0] RECEIVED;
+
+		for(integer m=0; m<32; m++)
+		begin
+			RECEIVED[m] = validationBufferTDO[m+1];
+			//$display("%d RECEIVED= %b EXPECTED=%b ",m+1, validationBufferTDO[m+1], EXPECTED[m] );
+		end
+		
+		if(RECEIVED == EXPECTED)
+		begin
+			`uvm_warning("compareForIdcode", "IDCODE MATCHED!" )
+			$display(" RECEIVED IDCODE= %h EXPECTED IDCODE=%h ", RECEIVED, EXPECTED );
+		end
+		else
+		begin `uvm_error("compareForIdcode", "IDCODE DO NOT MATCH")
+			$display(" RECEIVED IDCODE= %h EXPECTED IDCODE=%h ", RECEIVED, EXPECTED );
+		end
+	endfunction: compareForIdcode
 
 	function void report_phase(uvm_phase phase);
 		uvm_report_server svr;
@@ -437,6 +491,7 @@ class jtag_monitor_before extends uvm_monitor;
 	virtual dut_if dut_vif;
 	
 	reg [1:0] clock_value ;
+	integer tdiScan =0;
 
 	function new(string name, uvm_component parent);
 		super.new(name, parent);
@@ -456,19 +511,29 @@ class jtag_monitor_before extends uvm_monitor;
 
 		//Writing the data at every toggling of the TDI pin
 		forever begin
-			if(startValiadation)
-			begin
+			//if(startValiadation)
+			//begin
 				@(posedge dut_vif.tdi_pad_i)
 				begin
-					sa_tx.tdi = dut_vif.tdi_pad_i;
-					mon_ap_before.write(sa_tx);
+					if(startValiadation)
+					begin
+						sa_tx.tdi = dut_vif.tdi_pad_i;
+						mon_ap_before.write(sa_tx);
+						validationBufferTDI[tdiScan]=dut_vif.tdi_pad_i;
+						tdiScan++;
+					end
 				end
 				@(negedge dut_vif.tdi_pad_i)
 				begin
-					sa_tx.tdi = dut_vif.tdi_pad_i;
-					mon_ap_before.write(sa_tx);
+					if(startValiadation)
+					begin
+						sa_tx.tdi = dut_vif.tdi_pad_i;
+						mon_ap_before.write(sa_tx);
+						validationBufferTDI[tdiScan]=dut_vif.tdi_pad_i;
+						tdiScan++;
+					end
 				end
-			end
+			//end
 		end
 	endtask: run_phase
 endclass: jtag_monitor_before
@@ -486,6 +551,7 @@ class jtag_monitor_after extends uvm_monitor;
 	virtual dut_if dut_vif;
 
 	reg [1:0] clock_value ;
+	integer tdoScan =0;
 
 	function new(string name, uvm_component parent);
 		super.new(name, parent);
@@ -505,20 +571,43 @@ class jtag_monitor_after extends uvm_monitor;
 		sa_tx_after = my_transaction::type_id::create(.name("sa_tx_after"), .contxt(get_full_name()));
 
 		forever begin
-			if(startValiadation)
-			begin
-				//Writing the data at every toggling of the TDO pin
+			`ifdef BYPASS_INSTR
 				@(posedge dut_vif.tdo_pad_o)
 				begin
-					sa_tx_after.tdo = dut_vif.tdo_pad_o;
-					mon_ap_after.write(sa_tx_after);
+					if(startValiadation)
+					begin
+						sa_tx_after.tdo = dut_vif.tdo_pad_o;
+						mon_ap_after.write(sa_tx_after);
+						validationBufferTDO[tdoScan]=dut_vif.tdo_pad_o;
+						tdoScan++;
+					end
 				end
 				@(negedge dut_vif.tdo_pad_o)
 				begin
+					if(startValiadation)
+					begin
+						sa_tx_after.tdo = dut_vif.tdo_pad_o;
+						mon_ap_after.write(sa_tx_after);
+						validationBufferTDO[tdoScan]=dut_vif.tdo_pad_o;
+						tdoScan++;
+					end
+				end
+			`endif
+
+			`ifdef IDCODE_INSTR
+			@(negedge dut_vif.tck_pad_i)
+			begin
+				if(startValiadation)
+				begin
 					sa_tx_after.tdo = dut_vif.tdo_pad_o;
 					mon_ap_after.write(sa_tx_after);
+					validationBufferTDO[tdoScan]=dut_vif.tdo_pad_o;
+					tdoScan++;
 				end
 			end
+			
+			`endif
+
 		end
 	endtask: run_phase
 endclass: jtag_monitor_after
@@ -564,14 +653,14 @@ class jtag_scoreboard extends uvm_scoreboard;
 	
 	task run();
 		forever begin
-			if(startValiadation)
-			begin
+			//if(startValiadation)
+			//begin
 				before_fifo.get(transaction_before);
 				after_fifo.get(transaction_after);
 				//`uvm_info(get_type_name(),$sformatf("Expected Data: %0h Actual Data: %0h",sc_mem[mem_pkt.addr],mem_pkt.rdata),UVM_LOW)
 				`uvm_warning("", "Got into FIFO!")
 				//compare();
-			end
+			//end
 		end
 	endtask: run
 	/*

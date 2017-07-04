@@ -77,7 +77,7 @@
 // to a single shared FF.                                         ////
 //                                                                ////
 //////////////////////////////////////////////////////////////////////
-
+`include "my_sequence.svh"
 `include "tap_defines.v"
 interface dut_if;
 	logic  tms_pad_i, tck_pad_i, trstn_pad_i, tdi_pad_i, tdo_pad_o, tdo_padoe_o; // JTAG pads
@@ -532,6 +532,9 @@ end
 // TDO changes state at negative edge of TCK
 always @ (negedge dif.tck_pad_i)
 begin
+	if(introduceErrorBypass == 1)
+		tdo_pad_o = 1'b1;
+	else
 	tdo_pad_o = tdo_mux_out;
 end
 
@@ -546,5 +549,8 @@ end
 //   End: Multiplexing TDO data                                                   //
 //                                                                                //
 //================================================================================//
+
+
+
 endmodule
 ///
