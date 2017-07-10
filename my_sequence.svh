@@ -36,8 +36,8 @@
 
 // DEFINE TO TEST WHICH INSTRUCTION TO EXECUTE
 
-`define BYPASS_INSTR
-//`define IDCODE_INSTR
+//`define BYPASS_INSTR
+`define IDCODE_INSTR
 //`define SAMPLE_INSTR
 //`define EXTEST_INSTR
 //`define INTEST_INSTR
@@ -74,7 +74,10 @@ class my_transaction extends uvm_sequence_item;
 	rand bit tdi;
 	rand bit trstn;
 	rand bit tdo;
-	
+	rand bit A;
+	rand bit B;
+	rand bit Cin;
+
 	function new (string name = "");
 		super.new(name);
 	endfunction
@@ -116,9 +119,7 @@ endclass: my_sequence
 //                                                                    //
 // ================================================================== //
 class my_driver extends uvm_driver #(my_transaction);
-	
 	`uvm_component_utils(my_driver)
-
 	virtual dut_if dut_vif;
 
 	function new(string name, uvm_component parent);
@@ -146,10 +147,10 @@ class my_driver extends uvm_driver #(my_transaction);
 		// First toggle reset
 		if(init == 0)
 		begin
-			dut_vif.trstn_pad_i = 0;
-			@(posedge dut_vif.tck_pad_i);
+			dut_vif.TRST = 0;
+			@(posedge dut_vif.TCK);
 			#1;
-			dut_vif.trstn_pad_i = 1;		
+			dut_vif.TRST = 1;		
 			init = 1;
 		end
 				
@@ -161,47 +162,41 @@ class my_driver extends uvm_driver #(my_transaction);
 			case(count)
 				
 				0: begin //Test Logic Reset STATE
-					if(dut_vif.test_logic_reset_o) //The DUT enters the Test Logic Reset STATE
-					begin
-						dut_vif.tdi_pad_i = 1; //Initializing the input port to 1'b1
-						dut_vif.tms_pad_i = 0;
+						dut_vif.TDI = 1; //Initializing the input port to 1'b1
+						dut_vif.TMS = 0;
 						//`uvm_info("DUT", $sformatf("Test Logic Reset STATE"), UVM_MEDIUM)
 						count++;
-					end
 					seq_item_port.item_done();
-					@(posedge dut_vif.tck_pad_i);
+					@(posedge dut_vif.TCK);
 				end
 				
 				1: begin //Run Test Idle STATE
-					if(dut_vif.run_test_idle_o)// The DUT enters the Run Test Idle STATE
-					begin	
-						dut_vif.tms_pad_i = 1;	
+						dut_vif.TMS = 1;	
 						count++;
 						//complete = 1; //process completed				
-					end		
 					seq_item_port.item_done();
-					@(posedge dut_vif.tck_pad_i);
+					@(posedge dut_vif.TCK);
 				end
 				
 				2: begin //Select DR Scan STATE
-					dut_vif.tms_pad_i = 1;			
+					dut_vif.TMS = 1;			
 					count++;					
 					seq_item_port.item_done();
-					@(posedge dut_vif.tck_pad_i);
+					@(posedge dut_vif.TCK);
 				end
 					
 				3: begin //Select IR Scan STATE		
-					dut_vif.tms_pad_i = 0;		
+					dut_vif.TMS = 0;		
 					count++;					
 					seq_item_port.item_done();
-					@(posedge dut_vif.tck_pad_i);
+					@(posedge dut_vif.TCK);
 				end
 					
 				4: begin //capture ir state
-					dut_vif.tms_pad_i = 0;		
+					dut_vif.TMS = 0;		
 					count++;					
 					seq_item_port.item_done();
-					@(posedge dut_vif.tck_pad_i);
+					@(posedge dut_vif.TCK);
 				end
 				 
 				5: begin //SHIFT IR STATE 
@@ -209,49 +204,49 @@ class my_driver extends uvm_driver #(my_transaction);
 					begin
 						if(i!=0)  seq_item_port.get_next_item(req);
 						
-						dut_vif.tms_pad_i = 0;		
-						dut_vif.tdi_pad_i = 1;		
+						dut_vif.TMS = 0;		
+						dut_vif.TDI = 1;		
 						//count++;					
 						seq_item_port.item_done();
-						@(posedge dut_vif.tck_pad_i);
+						@(posedge dut_vif.TCK);
 					end
 					
 					//Moving to the next state
 					count++;
 					seq_item_port.get_next_item(req);
-					dut_vif.tms_pad_i = 1;		
+					dut_vif.TMS = 1;		
 					//count++;					
 					seq_item_port.item_done();
-					@(posedge dut_vif.tck_pad_i);
+					@(posedge dut_vif.TCK);
 					
 				end
 					 
 				6: begin //EXIT1 IR STATE 
-						dut_vif.tms_pad_i = 1;		
+						dut_vif.TMS = 1;		
 						count++;					
 						seq_item_port.item_done();
-						@(posedge dut_vif.tck_pad_i);			
+						@(posedge dut_vif.TCK);			
 				 end
 				 
 				 7: begin //UPDATE IR STATE 
-						dut_vif.tms_pad_i = 1;			
+						dut_vif.TMS = 1;			
 						count++;
 						seq_item_port.item_done();
-						@(posedge dut_vif.tck_pad_i);			
+						@(posedge dut_vif.TCK);			
 				 end
 				 
 				 8: begin //SELECT DR STATE 
-						dut_vif.tms_pad_i = 0;			
+						dut_vif.TMS = 0;			
 						count++;
 						seq_item_port.item_done();
-						@(posedge dut_vif.tck_pad_i);			
+						@(posedge dut_vif.TCK);			
 				 end
 
 				 9: begin //CAPTURE DR STATE 
-						dut_vif.tms_pad_i = 0;		
+						dut_vif.TMS = 0;		
 						count++;
 						seq_item_port.item_done();
-						@(posedge dut_vif.tck_pad_i);			
+						@(posedge dut_vif.TCK);			
 				 end
 				 
 				 10: begin //SHIFT DR STATE 
@@ -259,11 +254,11 @@ class my_driver extends uvm_driver #(my_transaction);
 						for(int i=0; i<=DATA_LENGTH; i++)//TDI to TDO via BYPASS Register x10
 						begin
 							if(i!=0)  seq_item_port.get_next_item(req);
-							dut_vif.tms_pad_i = 0;	
-							dut_vif.tdi_pad_i = req.tdi;
-							`uvm_info("DUT", $sformatf("Received TDI=%b, TDO=%b", dut_vif.tdi_pad_i, dut_vif.tdo_pad_o), UVM_MEDIUM)							
+							dut_vif.TMS = 0;	
+							dut_vif.TDI = req.tdi;
+							`uvm_info("DUT", $sformatf("Received TDI=%b, TDO=%b", dut_vif.TDI, dut_vif.TDO), UVM_MEDIUM)							
 							seq_item_port.item_done();
-							@(posedge dut_vif.tck_pad_i);			
+							@(posedge dut_vif.TCK);			
 						end 
 						count++;
 						init++;
@@ -281,98 +276,92 @@ class my_driver extends uvm_driver #(my_transaction);
 			case(count)
 				
 				0: begin //Test Logic Reset STATE
-					if(dut_vif.test_logic_reset_o) // The DUT enters the Test Logic Reset STATE
-					begin
-						dut_vif.tms_pad_i = 0;
+						dut_vif.TMS = 0;
 						//`uvm_info("DUT", $sformatf("Test Logic Reset STATE"), UVM_MEDIUM)
 						count++;
-					end
 					seq_item_port.item_done();
-					@(posedge dut_vif.tck_pad_i);
+					@(posedge dut_vif.TCK);
 				end
 				
 				1: begin //Run Test Idle STATE
-					if(dut_vif.run_test_idle_o)// The DUT enters the Run Test Idle STATE
-					begin	
-						dut_vif.tms_pad_i = 1;	
+						dut_vif.TMS = 1;	
 						count++;
-						//complete = 1; //process completed				
-					end		
+						//complete = 1; //process completed		
 					seq_item_port.item_done();
-					@(posedge dut_vif.tck_pad_i);
+					@(posedge dut_vif.TCK);
 				end
 				
 				2: begin //Select DR Scan STATE
-					dut_vif.tms_pad_i = 1;			
+					dut_vif.TMS = 1;			
 					count++;					
 					seq_item_port.item_done();
-					@(posedge dut_vif.tck_pad_i);
+					@(posedge dut_vif.TCK);
 				end
 					
 				3: begin //Select IR Scan STATE		
-					dut_vif.tms_pad_i = 0;
-					dut_vif.tdi_pad_i = 0; //For the first bit that will be shifted into the Instruction Register
+					dut_vif.TMS = 0;
+					dut_vif.TDI = 0; //For the first bit that will be shifted into the Instruction Register
 					count++;					
 					seq_item_port.item_done();
-					@(posedge dut_vif.tck_pad_i);
+					@(posedge dut_vif.TCK);
 				end
 					
 				 4: begin //capture ir state
-					 dut_vif.tms_pad_i = 0;		
+					 dut_vif.TMS = 0;		
 					 count++;					
 					 seq_item_port.item_done();
-					 @(posedge dut_vif.tck_pad_i);
+					 @(posedge dut_vif.TCK);
 				 end
 				 
 				5: begin //SHIFT IR STATE 
 					for(int i=0; i<=2; i++)//SHIFTING THE IR WITH 4 1's
 					begin
 						if(i!=0)  seq_item_port.get_next_item(req);
-						dut_vif.tms_pad_i = 0;		
-						if(i==0) dut_vif.tdi_pad_i = 0;		
-						else if(i==1) dut_vif.tdi_pad_i = 1;
-						else if(i==2) dut_vif.tdi_pad_i = 0;
+						dut_vif.TMS = 0;		
+						if(i==0) dut_vif.TDI = 0;		
+						else if(i==1) dut_vif.TDI = 1;
+						else if(i==2) dut_vif.TDI = 0;
 						//count++;					
 						seq_item_port.item_done();
-						@(posedge dut_vif.tck_pad_i);
+						@(posedge dut_vif.TCK);
 					end
 					
 					//Moving to the next state
 					count++;
 					seq_item_port.get_next_item(req);
-					dut_vif.tms_pad_i = 1;		
+					dut_vif.TMS = 1;		
 					//count++;					
 					seq_item_port.item_done();
-					@(posedge dut_vif.tck_pad_i);
+					@(posedge dut_vif.TCK);
 					
 				end
 					 
 				6: begin //EXIT1 IR STATE 
-						dut_vif.tms_pad_i = 1;		
+						dut_vif.TMS = 1;		
 						count++;					
 						seq_item_port.item_done();
-						@(posedge dut_vif.tck_pad_i);			
+						@(posedge dut_vif.TCK);			
 				 end
 				 
 				 7: begin //UPDATE IR STATE 
-						dut_vif.tms_pad_i = 1;		
+						dut_vif.TMS = 1;		
 						count++;
 						seq_item_port.item_done();
-						@(posedge dut_vif.tck_pad_i);			
+						@(posedge dut_vif.TCK);			
 				 end
 				 
 				 8: begin //SELECT DR STATE 
-						dut_vif.tms_pad_i = 0;			
+						dut_vif.TMS = 0;			
 						count++;
 						seq_item_port.item_done();
-						@(posedge dut_vif.tck_pad_i);			
+						@(posedge dut_vif.TCK);			
 				 end
 
 				 9: begin //CAPTURE DR STATE 
-						dut_vif.tms_pad_i = 0;			
+						dut_vif.TMS = 0;			
 						count++;
 						seq_item_port.item_done();
-						@(posedge dut_vif.tck_pad_i);			
+						@(posedge dut_vif.TCK);			
 				 end
 				 
 				 10: begin //SHIFT DR STATE 
@@ -380,13 +369,13 @@ class my_driver extends uvm_driver #(my_transaction);
 						for(int i=0; i<=32; i++)//Shfting out the 32 bit IDCODE
 						begin
 							if(i!=0)  seq_item_port.get_next_item(req);
-							dut_vif.tms_pad_i = 0;	
-							dut_vif.tdi_pad_i = 0;
+							dut_vif.TMS = 0;	
+							dut_vif.TDI = 0;
 							if(introduceErrorIdcode && i>10 && i<15)
-								dut_vif.tdo_pad_o = 1;
-							//`uvm_info("DUT", $sformatf("TDO=%b", dut_vif.tdo_pad_o), UVM_MEDIUM	)						
+								dut_vif.TDO = 1;
+							//`uvm_info("DUT", $sformatf("TDO=%b", dut_vif.TDO), UVM_MEDIUM	)						
 							seq_item_port.item_done();
-							@(posedge dut_vif.tck_pad_i);			
+							@(posedge dut_vif.TCK);			
 						end 
 						count++;
 				 end
@@ -394,7 +383,7 @@ class my_driver extends uvm_driver #(my_transaction);
 				 11: begin
 						init++;
 						seq_item_port.item_done();
-						@(posedge dut_vif.tck_pad_i);
+						@(posedge dut_vif.TCK);
 						break;
 				 end
 
@@ -420,7 +409,6 @@ class my_driver extends uvm_driver #(my_transaction);
 			report_phase(phase);
 		end
 	endtask
-
 
 	virtual function void compareForBypass();
 		for(integer m=0; m<DATA_LENGTH; m++)
@@ -513,23 +501,23 @@ class jtag_monitor_before extends uvm_monitor;
 		forever begin
 			//if(startValiadation)
 			//begin
-				@(posedge dut_vif.tdi_pad_i)
+				@(posedge dut_vif.TDI)
 				begin
 					if(startValiadation)
 					begin
-						sa_tx.tdi = dut_vif.tdi_pad_i;
+						sa_tx.tdi = dut_vif.TDI;
 						mon_ap_before.write(sa_tx);
-						validationBufferTDI[tdiScan]=dut_vif.tdi_pad_i;
+						validationBufferTDI[tdiScan]=dut_vif.TDI;
 						tdiScan++;
 					end
 				end
-				@(negedge dut_vif.tdi_pad_i)
+				@(negedge dut_vif.TDI)
 				begin
 					if(startValiadation)
 					begin
-						sa_tx.tdi = dut_vif.tdi_pad_i;
+						sa_tx.tdi = dut_vif.TDI;
 						mon_ap_before.write(sa_tx);
-						validationBufferTDI[tdiScan]=dut_vif.tdi_pad_i;
+						validationBufferTDI[tdiScan]=dut_vif.TDI;
 						tdiScan++;
 					end
 				end
@@ -572,36 +560,36 @@ class jtag_monitor_after extends uvm_monitor;
 
 		forever begin
 			`ifdef BYPASS_INSTR
-				@(posedge dut_vif.tdo_pad_o)
+				@(posedge dut_vif.TDO)
 				begin
 					if(startValiadation)
 					begin
-						sa_tx_after.tdo = dut_vif.tdo_pad_o;
+						sa_tx_after.tdo = dut_vif.TDO;
 						mon_ap_after.write(sa_tx_after);
-						validationBufferTDO[tdoScan]=dut_vif.tdo_pad_o;
+						validationBufferTDO[tdoScan]=dut_vif.TDO;
 						tdoScan++;
 					end
 				end
-				@(negedge dut_vif.tdo_pad_o)
+				@(negedge dut_vif.TDO)
 				begin
 					if(startValiadation)
 					begin
-						sa_tx_after.tdo = dut_vif.tdo_pad_o;
+						sa_tx_after.tdo = dut_vif.TDO;
 						mon_ap_after.write(sa_tx_after);
-						validationBufferTDO[tdoScan]=dut_vif.tdo_pad_o;
+						validationBufferTDO[tdoScan]=dut_vif.TDO;
 						tdoScan++;
 					end
 				end
 			`endif
 
 			`ifdef IDCODE_INSTR
-			@(negedge dut_vif.tck_pad_i)
+			@(negedge dut_vif.TCK)
 			begin
 				if(startValiadation)
 				begin
-					sa_tx_after.tdo = dut_vif.tdo_pad_o;
+					sa_tx_after.tdo = dut_vif.TDO;
 					mon_ap_after.write(sa_tx_after);
-					validationBufferTDO[tdoScan]=dut_vif.tdo_pad_o;
+					validationBufferTDO[tdoScan]=dut_vif.TDO;
 					tdoScan++;
 				end
 			end
@@ -653,28 +641,11 @@ class jtag_scoreboard extends uvm_scoreboard;
 	
 	task run();
 		forever begin
-			//if(startValiadation)
-			//begin
-				before_fifo.get(transaction_before);
-				after_fifo.get(transaction_after);
-				//`uvm_info(get_type_name(),$sformatf("Expected Data: %0h Actual Data: %0h",sc_mem[mem_pkt.addr],mem_pkt.rdata),UVM_LOW)
-				`uvm_warning("", "Got into FIFO!")
-				//compare();
-			//end
+			before_fifo.get(transaction_before);
+			after_fifo.get(transaction_after);
+			`uvm_warning("", "Got into FIFO!")
 		end
 	endtask: run
-	/*
-	virtual function void compare();
-		if(transaction_before.out == transaction_after.out)
-		begin
-			`uvm_info("compare", {"Test: OK"}, UVM_LOW);
-		end
-		else
-		begin
-			`uvm_info("compare", {"Test: Fail"}, UVM_LOW);
-		end
-	endfunction: compare
-*/
 endclass: jtag_scoreboard
 
 

@@ -1,8 +1,15 @@
 `include "uvm_macros.svh"
 `include "my_testbench_pkg.svh"
 
-// The top module that contains the DUT and interface.
-// This module starts the test.
+
+// ================================================================== //
+//                                                                    //
+// TOP TEST MODULE                                                    //
+// The top module that contains the DUT and interface.                //
+// This module starts the test.                                       //
+//                                                                    //
+// ================================================================== //
+
 module top;
   import uvm_pkg::*;
   import my_testbench_pkg::*;
@@ -15,8 +22,8 @@ module top;
   
   // Clock generator
   initial begin
-    dut_if1.tck_pad_i = 0;
-    forever #5 dut_if1.tck_pad_i = ~dut_if1.tck_pad_i;
+    dut_if1.TCK = 0;
+    forever #5 dut_if1.TCK = ~dut_if1.TCK;
   end
   
   initial begin
