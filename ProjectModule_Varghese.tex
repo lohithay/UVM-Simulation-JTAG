@@ -13,6 +13,7 @@
 \usepackage{array}
 \usepackage{enumitem}
 \usepackage{enumerate}
+\usepackage{wrapfig}
 
 % opening
 \title{\Huge{UVM-Simulationsmodell eines JTAG-Interfaces}}
@@ -220,6 +221,7 @@ TRST overrides the behavior of the TMS and TCK. In other words, asserting TRST r
 \begin{figure}[ht]
 \centering
 \includegraphics[width=10cm,height=6cm]{jtag_tap}
+\label{fig:jtag_tap}
 \caption{TAP CONTROLLER}
 \end{figure}
 
@@ -251,11 +253,11 @@ The instruction register allows an instruction to be shifted into the design. Th
 Each IR cell in the Instruction Register has a shift-register stage and a latch stage for fault isolation of the board-level serial test data path.
 
 %ADD IMAGE HERE
-\begin{figure}[ht]
-\centering
-\includegraphics[width=10cm,height=6cm]{instructionRegister}
-\caption{Instruction Register}
-\end{figure}
+%\begin{figure}[ht]
+%\centering
+%\includegraphics[width=10cm,height=6cm]{instructionRegister}
+%\caption{Instruction Register}
+%\end{figure}
 
 \begin{center}
 \begin{table}[!h]
@@ -383,7 +385,7 @@ The simulation runs as well as the occurring challenges are documented.
 %===============================================================================================================
 \newpage
 \pagebreak
-\section{Verification Environment}
+\section{Developed Modules:}
 
 \textbf{Blocks in UVM}
 \ \\
@@ -475,11 +477,322 @@ This is a very useful macro which we have used to print messages from the UVM en
 \end{itemize}
 
 
-\subsection{Device Under Test}
-The device under test here is a JTAG TAP controller. adopted from ...
+\subsection{Device Under Test with JTAG capability}
+The designed DUT is JTAG compliant. The objective of our project is to develop a UVM Test for a JTAG interface. We would design a basic full adder with JTAG capabilities. The full adder module can be replaced with any other DUTs and the same testbench would implement the same JTAG tests accurately.
+
+%ADD IMAGE HERE
+\begin{figure}[ht]
+\centering
+\includegraphics[width=12cm,height=10cm]{AdvancedDut}
+\caption{Developed Design Under Test}
+\end{figure}
+
+\FloatBarrier
+\subsubsection{Boundary Scan Cells Modules}
+\underline{\textbf{Located in:} \textit{InputCell.v} and \textit{OutputCell.v}}\\
+
+The boundary-scan test architecture provides a means to test interconnects between integrated circuits on a board without using physical test probes. It adds a boundary-scan cell that includes a multiplexer and latches to each pin on the device. Boundary-scan cells in a device can capture data from pin or core logic signals, or force data onto pins. Captured data is serially shifted out and externally compared to the expected results. Forced test data is serially shifted into the boundary-scan cells. All of this is controlled from a serial data path called the scan path or scan chain. Figure 1 depicts the main elements of a boundary-scan cell. By allowing direct access to nets, boundary-scan eliminates the need for a large number of test vectors, which are normally needed to properly initialize sequential logic. Tens or hundreds of vectors may do the job that had previously required thousands of vectors. Potential benefits realized from the use of boundary-scan are shorter test times, higher test coverage, increased diagnostic capability and lower capital equipment cost.
+
+Data is passed serially through the Boundary Scan Registers which help in debugging the state of the inputs and the outputs.
+
+%ADD IMAGE HERE
+\begin{figure}[ht]
+\centering
+\includegraphics[width=10cm,height=6cm]{BoundaryScanCell}
+\caption{Boundary Scan Cell}
+\end{figure}
+
+
+\textbf{Output Boundary Scan Cell:}
+This is the Boundary Scan Cell that is connected to the output side of the Full Adder Module. When the DUT is running in JTAG mode, then the TDI and TDO are connected between the boundary scan registers and this path is called the 'Scan Path'. The JTAG mode, the value in the instruction register decides the flow of information from the Scan Path. In normal operation mode, these boundary scan cells pass the Full Adder outputs to the outputs of the DUT.
+
+%ADD IMAGE HERE
+\begin{figure}[ht]
+\centering
+\includegraphics[width=17cm,height=4cm]{OutputCellCode}
+\caption{Output Cell Code}
+\end{figure}
+
+%ADD IMAGE HERE
+\begin{figure}[ht]
+\centering
+\includegraphics[width=7cm,height=4cm]{OutputDUT}
+\caption{Output DUT}
+\end{figure}
+
+\FloatBarrier
+\textbf{Input Boundary Scan Cell:}
+This is the Boundary Scan Cell that is connected to the output side of the Full Adder Module. In normal operation mode, these boundary scan cells pass the input given to the DUT to the Full Adder input ports. The JTAG mode, the value in the instruction register decides the flow of information from the Scan Path.
+
+%ADD IMAGE HERE
+\begin{figure}[ht]
+\centering
+\includegraphics[width=17cm,height=3cm]{InputCellCode}
+\caption{Input Cell Code}
+\end{figure}
+
+%ADD IMAGE HERE
+\begin{figure}[ht]
+\centering
+\includegraphics[width=7cm,height=4cm]{InputDUT}
+\caption{Input Cell Code}
+\end{figure}
+
+In addition to the parallel in, parallel out, serial in and serial out lines, the captureDR, ShiftDR, UpdateDR and TCK pins are also passed to this module from the TAP controller module. These signals indicate the Boundary Scan of the mode in which the DUT is operating in.
+
+InputCell.v and OutputCell.v are the files that contain the input boundary scan cell and output boundary scan cell respectively.
+
+
+\FloatBarrier
+\subsubsection{TAP Controller Module}
+\underline{\textbf{Located in:} \textit{tap\_top.v}}\\
+
+The TAP controller module controls all the operation of the DUT when in the JTAG test operation mode. The TCK, TDI, TRST and TMS are the inputs to this module. The TDO pin is the output from this module. The TAP controller also contains the instruction register, the BYPASS register and the IDCODE register.
+
+When the instruction register contains the instruction for IDCODE operation, the TDI and TDO are connected between the IDCODE registers. On every falling edge of the TCK signal, the IDCODE register is shifted out bit by bit to the TDO pin.
+
+The BYPASS register is a one bit register that is connected between the TDI and TDO pin when the BYPASS instruction is selected. So the TDO follows the TDI with one clock cycle delay.
+
+The operation of the TAP controller is controlled by the TMS pin. Fig. \ref{fig:jtag_tap} shows how the TAP controller states change. The Finite-State Machine for the TAP controller has been implemented and tested.
+
+
+\FloatBarrier
+\subsubsection{Full Adder Module}
+\underline{\textbf{Located in:} \textit{full\_adder.v}}\\
+
+The full adder module implements the basic operations of the Full adder. It has three inputs and Sum and Carry outputs. This module is written in the full\_ addder.v file.\\
+
+\underline{Ports of the full adder:}
+\begin{itemize}[noitemsep]
+\item A - input
+\item B - input
+\item Cin - input
+\item Sum - output
+\item Cout - output
+\end{itemize}
+
+%ADD IMAGE HERE
+\begin{figure}[ht]
+\centering
+\includegraphics[width=11cm,height=5cm]{fullAdderCode}
+\caption{Full Adder Module Code}
+\end{figure}
+
+%===============================================================================================================
+\FloatBarrier
+\subsection{UVM Modules}
+This contains all the modules that are required for the verification environment
+%ADD IMAGE HERE
+\begin{figure}[ht]
+\centering
+\includegraphics[width=12cm,height=8cm]{phase3Environment}
+\caption{Designed Verification Environment}
+\end{figure}
+
+Each of these blocks are explained in detail below. It also contains actual snapshots of the code for easier understanding.
+
+\FloatBarrier
+\subsubsection{Top Block}
+\underline{\textbf{Located in:} \textit{testbench.sv}}\\
+
+Generally the development of the DUT is done independently of the development of the testbench environment. The testbench top module connects the DUT to the verification components. A virtual interface is defined and added to the database so that all the modules that have access to the DUT can invoke it from the database.
+
+%ADD IMAGE HERE
+\begin{figure}[ht]
+\centering
+\includegraphics[width=11cm,height=9cm]{topTestCode}
+\caption{Testbench Top Code}
+\end{figure}
+
+The Top contains the following:
+
+\begin{itemize}[noitemsep]
+\item DUT Instance
+\item Interface instance
+\item Clock Generator block
+\item start the test
+\item set config\_db
+\item waveform dump logic
+\end{itemize}
+ 
+
+%\FloatBarrier
+\subsubsection{Test Block}
+\underline{\textbf{Located in:} \textit{my\_testbench\_pkg.svh}}\\
+
+The test file is derived from the uvm\_test class. The test defines the test scenario for the testbench. It contains the environment, configuration properties, class overrides etc. A sequence can also be connected from this block. This test block runs when the run\_test() function is called. Here, the test also defines the environment.
+%ADD IMAGE HERE
+\begin{figure}[ht]
+\centering
+\includegraphics[width=11cm,height=9cm]{testCode}
+\caption{Test Code}
+\end{figure}
+
+
+\FloatBarrier
+\subsubsection{Environment Block}
+\underline{\textbf{Located in:} \textit{my\_testbench\_pkg.svh}}\\
+
+The environment is derived from the uvm\_env class. The environment defines the Agent and the Scoreboard in the build phase. In the connect phase, the outputs from the monitor are connected to the scoreboard.
+
+%ADD IMAGE HERE
+\begin{figure}[ht]
+\centering
+\includegraphics[width=11cm,height=9cm]{environmentCode}
+\caption{Environment Code}
+\end{figure}
+
+\FloatBarrier
+\subsubsection{Agent Block}
+
+\underline{\textbf{Located in:} \textit{my\_testbench\_pkg.svh}}\\
+
+The build phase of the driver executes the following commands:
+\begin{itemize}[noitemsep]
+\item Instantiate the ports that are used to connect to the monitor
+\item Instantiate the sequencer block
+\item Instantiate the agent block
+\item Instantiate the monitor block for reading TDI 
+\item Instantiate the monitor block for reading TDO
+\end{itemize}
+
+The connect phase of the driver executes the following commands:
+\begin{itemize}[noitemsep]
+\item The seq\_item\_port of the driver is connected to the seq\_item\_export of the sequencer
+\item The uvm\_analysis\_port of TDI monitor is connected to the uvm\_analysis\_port of the agent
+\item The uvm\_analysis\_port of TDO monitor is connected to the uvm\_analysis\_port of the agent
+\end{itemize}
+
+The agent also contains the following blocks:
+\begin{itemize}[noitemsep]
+\item Sequence or Transaction Block
+\item Sequencer Block
+\item Driver Block
+\item Monitors Block
+\end{itemize}
+These blocks and their snapshots are explained more in detail further.
+
+%ADD IMAGE HERE
+\begin{figure}[ht]
+\centering
+\includegraphics[width=10cm,height=9cm]{agentCode}
+\caption{Agent code}
+\end{figure}
+
+
+\FloatBarrier
+\paragraph{Sequence or Transaction Block}\mbox{}\\
+\underline{\textbf{Located in:} \textit{my\_sequence.svh}}\\
+
+The first step in testing our RTL design is to decide what kind of transaction is to be passed to the Driver. The transaction is designed by extending the uvm\_ sequence\_ item class. This includes the information needed to model the communication between the UVM components.
+
+%ADD IMAGE HERE
+\begin{figure}[ht]
+\centering
+\includegraphics[width=10cm,height=7cm]{transaction}
+\caption{Transaction code}
+\end{figure}
+
+\FloatBarrier
+\paragraph{Sequencer Block}\mbox{}\\
+\underline{\textbf{Located in:} \textit{my\_sequence.svh}}\\
+
+After a basic transaction has been defined, the verification environment will need to generate a collection of them and get them ready to be sent to the driver. This is the job of the sequencer. Sequencer is extended from the uvm\_ sequence and its main job is to generate multiple transactions. Sequences are an ordered collection of transactions and they shape transactions to our needs and also generate as many as we need. We could also constrain the range of randomization to the valid range to reduce simulation time in invalid values. 
+These transactions are then transferred to the driver module.
+
+%ADD IMAGE HERE
+\begin{figure}[ht]
+\centering
+\includegraphics[width=10cm,height=6cm]{sequencerCode}
+\caption{Sequencer code}
+\end{figure}
+
+\FloatBarrier
+\paragraph{Driver Block}\mbox{}\\
+\underline{\textbf{Located in:} \textit{my\_sequence.svh}}\\
+
+The role of the driver block is to directly interact with the DUT. The driver pulls transactions from the sequencer and sends them repetitively to the signal-level interface. This interaction will be observed and evaluated by another block, the monitor. The driver toggles the TMS and the TDI pins to traverse through the TAP controller. The values of the TDI are shifted into the IR or the DR register depending on the state of the TAP controller. The driver module is extended from the uvm\_ driver class.
+The run phase of the driver does the following:
+
+\begin{itemize}[noitemsep]
+\item Gets a sequence item from sequencer
+\item Drive the sequence item to the DUT
+\item Wait for a possible few clock cycles for the DUT to respond
+\item Tell the sequencer that the current process is complete
+\item Ask the sequencer to send the next sequence item
+\end{itemize}
+
+The config\_db places the defined virtual interface in the database so that it can be accessed by the driver module. Using the similar process, the interface can be loaded into any block which accesses the DUT directly.\\
+
+\underline{\textbf{UVM Driver Methods:}}\\
+\textbf{get\_next\_item} \\This method blocks the driver till a sequence\_item is available at the sequencer\\
+\textbf{item\_done} \\The non-blocking item\_done()method will return a null pointer if there is no sequence\_item available in the sequencer.
+\\
+ \\
+\underline{\textbf{Tests implemented in the driver:}}\\
+\textbf{Bypass Instruction} \\
+The selection of the Bypass instruction is done by declaring \textit{`define BYPASS\_INSTR}.\\ \underline{Note:} Do not run two tests simultaneously. \\
+The tests for the bypass instruction are added in the run phase of the driver. The comments in the code mention exactly what each step does. Variable data stream length can be defined. A global variable \textit{DATA\_LENGTH} is defined in the \textit{my\_sequence.svh} file. The value will correspond to the length of the data stream that is sent from the TDI to the TDO. \\
+ \\
+The values of the TDI and TDO are stored by the monitor and then written into the scoreboard. The function \textit{compareForBypass()} compares the TDI and TDO values and the result is printed in the console of the QuestaSim during simulation. \\
+ \\
+ To introduce error into the bypass instruction the variable \textit{introduceErrorBypass} should be set to 1. This introduces a stuck-at-1 error at TDO pin. The function \textit{compareForBypass()} compares the two data streams and gives out an error on the console as the TDO and the TDI values do not match.\\
+ \\
+\textbf{Idcode Instruction} \\
+The selection of the Idcode instruction is done by declaring \textit{`define IDCODE\_INSTR}.\\
+The tests for the IDCODE are also defined in the run phase of the driver. The comments in the code mention exactly what each step does. Here, variable data streams cannot be defined as the length of the IDCODE register is defined in the IEEE Standard 1149.1\\
+ \\
+The values of the TDI and TDO are stored by the monitor and then written into the scoreboard. The function \textit{compareForIdcode()} compares the TDO values with the values of the IDCODE defined in the DUT . The result is printed in the console of the QuestaSim during simulation. Incase of an error, the IDCODE that is read by the verification environment is also printed out on the console. \\
+ \\
+ To introduce error into the IDCODE instruction the variable \textit{introduceErrorIdcode} should be set to 1. This introduces an error in the value that is read from the IDCODE register. The function \textit{compareForIdcode()} compares the two data streams and gives out an error on the console as the TDO values and the IDCODE register values do not match.
+
+%ADD IMAGE HERE
+\begin{figure}[ht]
+\centering
+\includegraphics[width=10cm,height=7cm]{driverCode}
+\caption{Driver code}
+\end{figure}
+
+
+\FloatBarrier
+\paragraph{Monitors Block}\mbox{}\\
+\underline{\textbf{Located in:} \textit{my\_sequence.svh}}\\
+The monitor is derived from the uvm\_monitor. Monitor is a passive block that observes the communication of the DUT with the verification environment. The monitor also returns an error if the response of the DUT does not match with the expected results. It is passive because it does not drive any signals to the DUT. The monitor samples the DUT signals through the virtual interface and converts the signal level activity to transaction level activity.
+
+Monitor uses TLM ports to point to the DUT signals. There are two monitors that have been defined in out verification environment. One monitor is used to sample the inputs that are driven from the driver to the DUT( TDI ). The second monitor samples the response of the DUT (TDO) and converts in into transaction level activity. All these are written to the scoreboard.
+
+
+%ADD IMAGE HERE
+\begin{figure}[ht]
+\centering
+\includegraphics[width=10cm,height=7cm]{monitorBeforeCode}
+\caption{Monitor code for TDI}
+\end{figure}
+
+%ADD IMAGE HERE
+\begin{figure}[ht]
+\centering
+\includegraphics[width=10cm,height=7cm]{monitorAfterCode}
+\caption{Monitor code for TDO}
+\end{figure}
+
+\FloatBarrier
+\subsubsection{Scoreboard Block}
+\underline{\textbf{Located in:} \textit{my\_sequence.svh}}\\
+
+The scoreboard module is extended from the uvm\_scoreboard class. uvm\_scoreboard is inherited by uvm\_component. The signals from the monitors are connected to the scoreboard.
+%ADD IMAGE HERE
+\begin{figure}[ht]
+\centering
+\includegraphics[width=10cm,height=7cm]{scoreboardCode}
+\caption{Scoreboard code}
+\end{figure}
+
+
 
 
 %===============================================================================================================
+\FloatBarrier
 \newpage
 \pagebreak
 
@@ -548,6 +861,7 @@ Phase 2 development was built over the existing architecture in Phase 1. Here we
 \end{figure}
 
 \subsubsection{Testing Results for Phase III}
+
 \ \\
 \ \\
 \subsubsection{Testing Conclusion for Phase III}
@@ -564,7 +878,13 @@ Phase 2 development was built over the existing architecture in Phase 1. Here we
 \subsection{Instruction: BYPASS}
 \ \\
 \ \\
+\begin{figure}[ht]
+\centering
+\includegraphics[width=17cm,height=7cm]{images/testing_BYPASS_collage}
+\caption{Result of the BYPASS instruction testing}
+\end{figure}
 
+\FloatBarrier
 \subsection{Instruction: EXTEST}
 \ \\
 \ \\
@@ -581,6 +901,13 @@ Phase 2 development was built over the existing architecture in Phase 1. Here we
 %===============================================================================================================
 \newpage
 \pagebreak
+\section{Conclusion}
+
+We have now implemented a Device under test with JTAG capabilities. This can now be further extended to any DUT that is designed by replacing the \textit{full\_adder.v} file with any file that has the DUT to be tested. Only \textit{top\_module.v} needs to be modified for the instantiation of the modules. The UVM environment would remain the same and we could test the complete functionality of the JTAG instructions.
+
+The tests have been carried out to see the responses of the DUT to the BYPASS and IDCODE instructions. The UVM environment compares the received and the expected values and gives an output on the console of the IDE. The user does not have to use the waveforms to manually verify the integrity of the signals. This reduces the time and effort that goes into testing of modules.
+
+Provision has also been made to intentionally introduce errors into the testing modes. This gives us an idea of how the response would be when there is something wrong with the DUT. Also, this functionality helps cross verify our verification environment.
 %
 \newpage
 \bibliographystyle{latex8}
@@ -623,6 +950,9 @@ Phase 2 development was built over the existing architecture in Phase 1. Here we
 
 \bibitem[16]{edaplayground} {\em EDA Playground}
 \url{https://www.edaplayground.com}
+
+\bibitem[16]{edaplayground} {\em corelis.com}
+\url{http://www.corelis.com/education/Boundary-Scan_Tutorial.htm}
 
 \end{thebibliography} 
 %
