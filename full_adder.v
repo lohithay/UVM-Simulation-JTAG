@@ -25,7 +25,7 @@ assign output_sum_o = output_sum;
 assign output_cout_o = output_cout;
 //assign {output_cout, output_sum} = input_cin + input_a + input_b;
 
-always @* begin
+always @(*) begin
    {output_cout, output_sum} <= input_cin + input_a + input_b;
 end
 

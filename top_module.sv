@@ -89,7 +89,13 @@ import uvm_pkg::*;
 interface dut_if;
 
  logic A, B, Cin, Sum, Cout;
- logic TMS, TCK, TDI, TDO, TRST ;
+ logic TMS, TCK, TDI, TDO, TRST;
+
+ logic extest, sample_preload, idcode, intest, debug, bypass;
+ 
+ logic DRCapture, DRShift, DRUpdate;
+ logic IRUpdate;
+
  endinterface
  
 module dut(dut_if dif);
@@ -97,27 +103,25 @@ module dut(dut_if dif);
 reg Sum_o, Cout_o, TDO_o;
 
 wire w1, w2, w3, w4; // Wires between the Boundary Scan Cells
-wire DRCapture, DRShift, DRUpdate;  //Connections between the TAP controller and the Boundary Scan Cells for state of the TAP FSM
+//wire DRCapture, DRShift, DRUpdate;  //Connections between the TAP controller and the Boundary Scan Cells for state of the TAP FSM
 wire AToCore, BToCore, CinToCore, CoreToSum, CoreToCout;  //Connections between Boundary Scan Cells and the FullAdder
-wire extest, sample_preload, idcode, intes, debug, bypass;  //connections to indicate to the Boundary Scan Registers about the current state of the Instruction Register
+//wire extest, sample_preload, idcode, intest, debug, bypass;  //connections to indicate to the Boundary Scan Registers about the current state of the Instruction Register
 
- 
+//reg sample_preload_r;
+
+
 full_adder full_adder1(AToCore, BToCore, CinToCore, CoreToSum, CoreToCout );
-tap_top tap_top1(dif.TMS, dif.TCK, dif.TRST, dif.TDI, dif.TDO, DRShift, DRUpdate, DRCapture, extest, sample_preload, idcode, intes, debug, bypass, TDO_o);
+tap_top tap_top1(dif.TMS, dif.TCK, dif.TRST, dif.TDI, dif.TDO, dif.DRShift,
+dif.DRUpdate, dif.DRCapture, dif.extest, dif.sample_preload, dif.idcode, dif.intest,
+debug, bypass, TDO_o, dif.IRUpdate);
 
-InputCell InputCellA  (dif.A, w2, DRCapture, DRShift, dif.TCK, w3, AToCore);
-InputCell InputCellB  (dif.B, w1, DRCapture, DRShift, dif.TCK, w2, BToCore);
-InputCell InputCellCin(dif.Cin, dif.TDI, DRCapture, DRShift, dif.TCK, w1, CinToCore);
+InputCell InputCellA  (dif.A, w2, dif.DRCapture, dif.DRShift, dif.DRUpdate, dif.TCK, w3, AToCore);
+InputCell InputCellB  (dif.B, w1, dif.DRCapture, dif.DRShift, dif.DRUpdate, dif.TCK, w2, BToCore);
+InputCell InputCellCin(dif.Cin, dif.TDI, dif.DRCapture, dif.DRShift, dif.DRUpdate, dif.TCK, w1, CinToCore);
 
-OutputCell OutputCellSum(CoreToSum, w3, DRCapture, DRShift, DRUpdate, extest, dif.TCK, w4, Sum_o);
-OutputCell OutputCellCout(CoreToCout, w4, DRCapture, DRShift, DRUpdate, extest, dif.TCK, TDO_o, Cout_o);
+InputCell OutputCellSum(CoreToSum, w3, dif.DRCapture, dif.DRShift, dif.DRUpdate, dif.TCK, w4, dif.Sum);
+InputCell OutputCellCout(CoreToCout, w4, dif.DRCapture, dif.DRShift, dif.DRUpdate, dif.TCK, TDO_o, dif.Cout);
   
-
-
-
-assign dif.Sum = Sum_o;
-assign dif.Cout = Cout_o;
-
 
 endmodule
  

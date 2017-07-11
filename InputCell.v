@@ -1,4 +1,4 @@
-/**********************************************************************************
+/*********************************************************************************
 *                                                                                 *
 *  This verilog file is a part of the Boundary Scan Implementation and comes in   *
 *  a pack with several other files. It is fully IEEE 1149.1 compliant.            *
@@ -22,46 +22,47 @@
 
 /**********************************************************************************
 *                                                                                 *
-*	  Input Cell:                                                                   *
+*	  Input Cell:                                                                 *
 *                                                                                 *
-*	  InputPin: Value that comes from on-chip logic	and goes to pin                 *
-*	  FromPreviousBSCell: Value from previous boundary scan cell                    *
-*	  ToNextBSCell: Value for next boundary scan cell                               *
-*	  CaptureDR, ShiftDR: TAP states                                                *
-*	  TCK: Test Clock                                                               *
+*	  InputPin: Value that comes from on-chip logic	and goes to pin               *
+*	  FromPreviousBSCell: Value from previous boundary scan cell                  *
+*	  ToNextBSCell: Value for next boundary scan cell                             *
+*	  CaptureDR, ShiftDR: TAP states                                              *
+*	  TCK: Test Clock                                                             *
 *                                                                                 *
 **********************************************************************************/
 
 // This is not a top module 
-module InputCell( InputPin, FromPreviousBSCell, CaptureDR, ShiftDR, TCK, ToNextBSCell, ToCore);
+module InputCell( InputPin, FromPreviousBSCell, CaptureDR, ShiftDR, UpdateDR, TCK, ToNextBSCell, ToCore);
 input  InputPin;
 input  FromPreviousBSCell;
 input  CaptureDR;
 input  ShiftDR; 
+input  UpdateDR;
 input  TCK;
 output ToNextBSCell;
 output ToCore; 
 
-reg Latch;      
+reg    Latch;      
 reg    ToNextBSCell;
 reg    ToCore;
 
-wire SelectedInput = CaptureDR? InputPin : FromPreviousBSCell;
 
-always @ (posedge TCK)
+always @(posedge TCK)
 begin
-	if(CaptureDR | ShiftDR)
-		Latch<=SelectedInput;
+	if(CaptureDR)
+		Latch <= InputPin;
+	else if(UpdateDR)
+		ToCore <= Latch;
+	else if(ShiftDR)
+		Latch <= FromPreviousBSCell;
 end
 
-always @ (negedge TCK)
+always @(negedge TCK)
 begin
-	ToNextBSCell<=Latch;
+	if(ShiftDR)
+		ToNextBSCell <= Latch;
 end
-
-wire toCoreEnable = 1'b1; //To be edited as the test conditions are added
-assign toCore = toCoreEnable? InputPin : 1'bz;
-
 
 endmodule	// InputCell
 
@@ -80,5 +81,4 @@ InputPin ------->| Scan   |-------> ToCore
                       |
               FromPreviousBSCell
 					  
-					  
-*/
+					  */

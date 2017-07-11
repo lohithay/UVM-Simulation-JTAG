@@ -37,10 +37,10 @@
 // DEFINE TO TEST WHICH INSTRUCTION TO EXECUTE
 
 //`define BYPASS_INSTR
-`define IDCODE_INSTR
+//`define IDCODE_INSTR
 //`define SAMPLE_INSTR
 //`define EXTEST_INSTR
-//`define INTEST_INSTR
+`define INTEST_INSTR
 
 //GLOBAL VARIABLE Declaration
 
@@ -97,8 +97,11 @@ class my_sequence extends uvm_sequence#(my_transaction);
 		super.new(name);
 	endfunction
 
+	integer numberOfRequests = 0;
+
 	task body;
-		repeat(80)
+		numberOfRequests = 80 + DATA_LENGTH;
+		repeat(numberOfRequests)
 		begin
 			req = my_transaction::type_id::create("req");
 
@@ -393,13 +396,261 @@ class my_driver extends uvm_driver #(my_transaction);
 		`endif //IDCODE INSTR
 		
 		// `ifdef EXTEST_INSTR
-		// `endif EXTEST_INSTR
+		// `endif //EXTEST_INSTR
 		
-		// `ifdef INTEST_INSTR
-		// `endif INTEST_INSTR
+		 `ifdef INTEST_INSTR
+			while(count<=11 && init ==1)
+			begin
+				seq_item_port.get_next_item(req);
+				case(count)
+					
+					0: begin //Test Logic Reset STATE
+							dut_vif.TMS = 0;
+							//`uvm_info("DUT", $sformatf("Test Logic Reset STATE"), UVM_MEDIUM)
+							count++;
+						seq_item_port.item_done();
+						@(posedge dut_vif.TCK);
+					end
+					
+					1: begin //Run Test Idle STATE
+							dut_vif.TMS = 1;	
+							count++;
+							//complete = 1; //process completed		
+						seq_item_port.item_done();
+						@(posedge dut_vif.TCK);
+					end
+					
+					2: begin //Select DR Scan STATE
+						dut_vif.TMS = 1;			
+						count++;					
+						seq_item_port.item_done();
+						@(posedge dut_vif.TCK);
+					end
+						
+					3: begin //Select IR Scan STATE		
+						dut_vif.TMS = 0;
+						dut_vif.TDI = 0; //For the first bit that will be shifted into the Instruction Register
+						count++;					
+						seq_item_port.item_done();
+						@(posedge dut_vif.TCK);
+					end
+						
+					 4: begin //capture ir state
+						 dut_vif.TMS = 0;		
+						 count++;					
+						 seq_item_port.item_done();
+						 @(posedge dut_vif.TCK);
+					 end
+					 
+					5: begin //SHIFT IR STATE 
+						for(int i=0; i<=2; i++)//SHIFTING THE IR WITH Instruction for Intest
+						begin
+							if(i!=0)  seq_item_port.get_next_item(req);
+							dut_vif.TMS = 0;		
+							if(i==0) dut_vif.TDI = 1;		
+							else if(i==1) dut_vif.TDI = 0;
+							else if(i==2) dut_vif.TDI = 0;
+							//else if(i==3) dut_vif.TDI = 1;
+							//count++;					
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);
+						end
+						
+						//Moving to the next state
+						count++;
+						seq_item_port.get_next_item(req);
+						dut_vif.TMS = 1;
+						dut_vif.TDI = 1;
+						//count++;					
+						seq_item_port.item_done();
+						@(posedge dut_vif.TCK);
+						
+					end
+						 
+					6: begin //EXIT1 IR STATE 
+							dut_vif.TMS = 1;
+							dut_vif.TDI = 0;		
+							count++;					
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+					 
+					 7: begin //UPDATE IR STATE 
+							dut_vif.TMS = 1;		
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+					 
+					 8: begin //SELECT DR STATE 
+							dut_vif.TMS = 0;			
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+
+					 9: begin //CAPTURE DR STATE 
+							dut_vif.TMS = 0;			
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+					 
+					 10: begin //SHIFT DR STATE 
+					 		startValiadation = 1;
+							for(int i=0; i<=32; i++)//Shfting out the bits via BOundary Scan
+							begin
+								if(i!=0)  seq_item_port.get_next_item(req);
+								dut_vif.TMS = 0;	
+								dut_vif.TDI = req.tdi;
+								//if(introduceErrorIdcode && i>10 && i<15)
+								//	dut_vif.TDO = 1;
+								//`uvm_info("DUT", $sformatf("TDO=%b", dut_vif.TDO), UVM_MEDIUM	)						
+								seq_item_port.item_done();
+								@(posedge dut_vif.TCK);			
+							end 
+							count++;
+					 end
+					 
+					 11: begin
+							init++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);
+							break;
+					 end
+
+					default: break;				
+				endcase
+			end //while loop
+		 `endif //INTEST_INSTR
 		
-		// `ifdef SAMPLE_INSTR
-		// `endif SAMPLE_INSTR
+		 `ifdef SAMPLE_INSTR
+		 	dut_vif.A = 1'b1;
+		 	dut_vif.B = 1'b1;
+		 	dut_vif.Cin = 1'b0;
+
+			while(count<=11 && init ==1)
+			begin
+				seq_item_port.get_next_item(req);
+				case(count)
+					
+					0: begin //Test Logic Reset STATE
+							dut_vif.TMS = 0;
+							//`uvm_info("DUT", $sformatf("Test Logic Reset STATE"), UVM_MEDIUM)
+							count++;
+						seq_item_port.item_done();
+						@(posedge dut_vif.TCK);
+					end
+					
+					1: begin //Run Test Idle STATE
+							dut_vif.TMS = 1;	
+							count++;
+							//complete = 1; //process completed		
+						seq_item_port.item_done();
+						@(posedge dut_vif.TCK);
+					end
+					
+					2: begin //Select DR Scan STATE
+						dut_vif.TMS = 1;			
+						count++;					
+						seq_item_port.item_done();
+						@(posedge dut_vif.TCK);
+					end
+						
+					3: begin //Select IR Scan STATE		
+						dut_vif.TMS = 0;
+						dut_vif.TDI = 0; //For the first bit that will be shifted into the Instruction Register
+						count++;					
+						seq_item_port.item_done();
+						@(posedge dut_vif.TCK);
+					end
+						
+					 4: begin //capture ir state
+						 dut_vif.TMS = 0;		
+						 count++;					
+						 seq_item_port.item_done();
+						 @(posedge dut_vif.TCK);
+					 end
+					 
+					5: begin //SHIFT IR STATE 
+						for(int i=0; i<=2; i++)//SHIFTING THE IR WITH Instruction for Sample/Preload
+						begin
+							if(i!=0)  seq_item_port.get_next_item(req);
+							dut_vif.TMS = 0;		
+							if(i==0) dut_vif.TDI = 1;		
+							else if(i==1) dut_vif.TDI = 0;
+							else if(i==2) dut_vif.TDI = 0;
+
+							//count++;					
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);
+						end
+						
+						//Moving to the next state
+						count++;
+						seq_item_port.get_next_item(req);
+						dut_vif.TMS = 1;		
+						//count++;					
+						seq_item_port.item_done();
+						@(posedge dut_vif.TCK);
+						
+					end
+						 
+					6: begin //EXIT1 IR STATE 
+							dut_vif.TMS = 1;		
+							count++;					
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+					 
+					 7: begin //UPDATE IR STATE 
+							dut_vif.TMS = 1;		
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+					 
+					 8: begin //SELECT DR STATE 
+							dut_vif.TMS = 0;			
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+
+					 9: begin //CAPTURE DR STATE 
+							dut_vif.TMS = 0;			
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+					 
+					 10: begin //SHIFT DR STATE 
+					 		startValiadation = 1;
+							for(int i=0; i<=32; i++)//Shfting out the bits via BOundary Scan
+							begin
+								if(i!=0)  seq_item_port.get_next_item(req);
+								dut_vif.TMS = 0;	
+								dut_vif.TDI = req.tdi;
+								//if(introduceErrorIdcode && i>10 && i<15)
+								//	dut_vif.TDO = 1;
+								//`uvm_info("DUT", $sformatf("TDO=%b", dut_vif.TDO), UVM_MEDIUM	)						
+								seq_item_port.item_done();
+								@(posedge dut_vif.TCK);			
+							end 
+							count++;
+					 end
+					 
+					 11: begin
+							init++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);
+							break;
+					 end
+
+					default: break;				
+				endcase
+			end //while loop	
+		 `endif //SAMPLE_INSTR
 		
 		if(init == 2)
 		begin
@@ -413,16 +664,16 @@ class my_driver extends uvm_driver #(my_transaction);
 	virtual function void compareForBypass();
 		for(integer m=0; m<DATA_LENGTH; m++)
 		begin
-			if(validationBufferTDI[m]==validationBufferTDO[m+1])
+			if(validationBufferTDI[m]==validationBufferTDO[m+2])
 			begin
 				`uvm_warning("compareForBypass", "SAME" )
-				$display("TDI= %b TDO=%b ",validationBufferTDI[m], validationBufferTDO[m+1] );
+				$display("TDI= %b TDO=%b ",validationBufferTDI[m], validationBufferTDO[m+2] );
 
 			end
 			else
 			begin
 				`uvm_error("compareForBypass", "DIFFERENT")
-				$display("TDI= %b TDO=%b ",validationBufferTDI[m], validationBufferTDO[m+1] );
+				$display("TDI= %b TDO=%b ",validationBufferTDI[m], validationBufferTDO[m+2] );
 			end
 		end
 	endfunction: compareForBypass
@@ -501,17 +752,7 @@ class jtag_monitor_before extends uvm_monitor;
 		forever begin
 			//if(startValiadation)
 			//begin
-				@(posedge dut_vif.TDI)
-				begin
-					if(startValiadation)
-					begin
-						sa_tx.tdi = dut_vif.TDI;
-						mon_ap_before.write(sa_tx);
-						validationBufferTDI[tdiScan]=dut_vif.TDI;
-						tdiScan++;
-					end
-				end
-				@(negedge dut_vif.TDI)
+				@(posedge dut_vif.TCK)
 				begin
 					if(startValiadation)
 					begin
@@ -560,17 +801,7 @@ class jtag_monitor_after extends uvm_monitor;
 
 		forever begin
 			`ifdef BYPASS_INSTR
-				@(posedge dut_vif.TDO)
-				begin
-					if(startValiadation)
-					begin
-						sa_tx_after.tdo = dut_vif.TDO;
-						mon_ap_after.write(sa_tx_after);
-						validationBufferTDO[tdoScan]=dut_vif.TDO;
-						tdoScan++;
-					end
-				end
-				@(negedge dut_vif.TDO)
+				@(negedge dut_vif.TCK)
 				begin
 					if(startValiadation)
 					begin
@@ -593,7 +824,31 @@ class jtag_monitor_after extends uvm_monitor;
 					tdoScan++;
 				end
 			end
-			
+			`endif
+			`ifdef SAMPLE_INSTR
+			@(negedge dut_vif.TCK)
+			begin
+				if(startValiadation)
+				begin
+					sa_tx_after.tdo = dut_vif.TDO;
+					mon_ap_after.write(sa_tx_after);
+					//validationBufferTDO[tdoScan]=dut_vif.TDO;
+					//tdoScan++;
+				end
+			end
+			`endif
+
+			`ifdef INTEST_INSTR
+			@(negedge dut_vif.TCK)
+			begin
+				if(startValiadation)
+				begin
+					sa_tx_after.tdo = dut_vif.TDO;
+					mon_ap_after.write(sa_tx_after);
+					//validationBufferTDO[tdoScan]=dut_vif.TDO;
+					//tdoScan++;
+				end
+			end
 			`endif
 
 		end
