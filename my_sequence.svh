@@ -38,9 +38,10 @@
 
 //`define BYPASS_INSTR
 //`define IDCODE_INSTR
-//`define SAMPLE_INSTR
+//`define SAMPLE_PRELOAD_INSTR
 //`define EXTEST_INSTR
 `define INTEST_INSTR
+
 
 //GLOBAL VARIABLE Declaration
 
@@ -52,7 +53,8 @@ bit introduceErrorIdcode = 0;
 bit startValiadation = 0;  //Indicates when the data has to be checked
 bit validationBufferTDI [100];
 bit validationBufferTDO [100];
-
+bit setPreloadValue[5] =   { 1,    0,   1, 0, 1   };
+//bit setPreloadValue[5] = { Cout, Sum, A, B, Cin };
 
 // Imports
 import uvm_pkg::*;
@@ -399,7 +401,7 @@ class my_driver extends uvm_driver #(my_transaction);
 		// `endif //EXTEST_INSTR
 		
 		 `ifdef INTEST_INSTR
-			while(count<=11 && init ==1)
+			while(count<=16 && init ==1)
 			begin
 				seq_item_port.get_next_item(req);
 				case(count)
@@ -498,7 +500,51 @@ class my_driver extends uvm_driver #(my_transaction);
 					 
 					 10: begin //SHIFT DR STATE 
 					 		startValiadation = 1;
-							for(int i=0; i<=32; i++)//Shfting out the bits via BOundary Scan
+							for(int i=0; i<=4; i++)//Shfting out the bits via BOundary Scan
+							begin
+								if(i!=0)  seq_item_port.get_next_item(req);
+								dut_vif.TMS = 0;	
+								dut_vif.TDI = setPreloadValue[i];
+								//if(introduceErrorIdcode && i>10 && i<15)
+								//	dut_vif.TDO = 1;
+								//`uvm_info("DUT", $sformatf("TDO=%b", dut_vif.TDO), UVM_MEDIUM	)						
+								seq_item_port.item_done();
+								@(posedge dut_vif.TCK);			
+							end 
+							count++;
+					 end
+
+					 11: begin //EXIT1 DR STATE 
+							dut_vif.TMS = 1;			
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+
+					 12: begin //UPDATE DR STATE 
+							dut_vif.TMS = 1;			
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+
+					 13: begin // SELECT DR SCAN
+							dut_vif.TMS = 1;			
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+
+					 14: begin // CAPTURE DR SCAN
+							dut_vif.TMS = 0;			
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end 
+					 
+					 15: begin //SHIFT DR STATE 
+					 		startValiadation = 1;
+							for(int i=0; i<=5; i++)//Shfting out the bits via BOundary Scan
 							begin
 								if(i!=0)  seq_item_port.get_next_item(req);
 								dut_vif.TMS = 0;	
@@ -512,7 +558,7 @@ class my_driver extends uvm_driver #(my_transaction);
 							count++;
 					 end
 					 
-					 11: begin
+					 16: begin // SELECT DR SCAN
 							init++;
 							seq_item_port.item_done();
 							@(posedge dut_vif.TCK);
@@ -524,10 +570,10 @@ class my_driver extends uvm_driver #(my_transaction);
 			end //while loop
 		 `endif //INTEST_INSTR
 		
-		 `ifdef SAMPLE_INSTR
-		 	dut_vif.A = 1'b1;
-		 	dut_vif.B = 1'b1;
-		 	dut_vif.Cin = 1'b0;
+		 `ifdef SAMPLE_PRELOAD_INSTR
+		 	//dut_vif.A = 1'b1;
+		 	//dut_vif.B = 1'b1;
+		 	//dut_vif.Cin = 1'b0;
 
 			while(count<=11 && init ==1)
 			begin
@@ -626,11 +672,11 @@ class my_driver extends uvm_driver #(my_transaction);
 					 
 					 10: begin //SHIFT DR STATE 
 					 		startValiadation = 1;
-							for(int i=0; i<=32; i++)//Shfting out the bits via BOundary Scan
+							for(int i=0; i<=4; i++)//Shfting out the bits via BOundary Scan
 							begin
 								if(i!=0)  seq_item_port.get_next_item(req);
 								dut_vif.TMS = 0;	
-								dut_vif.TDI = req.tdi;
+								dut_vif.TDI = setPreloadValue[i];
 								//if(introduceErrorIdcode && i>10 && i<15)
 								//	dut_vif.TDO = 1;
 								//`uvm_info("DUT", $sformatf("TDO=%b", dut_vif.TDO), UVM_MEDIUM	)						
@@ -650,7 +696,7 @@ class my_driver extends uvm_driver #(my_transaction);
 					default: break;				
 				endcase
 			end //while loop	
-		 `endif //SAMPLE_INSTR
+		 `endif //SAMPLE_PRELOAD_INSTR
 		
 		if(init == 2)
 		begin
@@ -698,6 +744,16 @@ class my_driver extends uvm_driver #(my_transaction);
 			$display(" RECEIVED IDCODE= %h EXPECTED IDCODE=%h ", RECEIVED, EXPECTED );
 		end
 	endfunction: compareForIdcode
+
+	virtual function void printForIntest();
+		for(integer m=0; m<5; m++)
+		begin
+			//RECEIVED[m] = validationBufferTDO[m];
+			$display("A - %d \n B - %d \n Cin - %d \n Sum - %d \n Cout - %d \n",validationBufferTDO[2],validationBufferTDO[3],validationBufferTDO[4],validationBufferTDO[1],validationBufferTDO[0]);
+		end
+	endfunction: printForIntest
+
+
 
 	function void report_phase(uvm_phase phase);
 		uvm_report_server svr;
@@ -825,7 +881,7 @@ class jtag_monitor_after extends uvm_monitor;
 				end
 			end
 			`endif
-			`ifdef SAMPLE_INSTR
+			`ifdef SAMPLE_PRELOAD_INSTR
 			@(negedge dut_vif.TCK)
 			begin
 				if(startValiadation)
@@ -845,8 +901,8 @@ class jtag_monitor_after extends uvm_monitor;
 				begin
 					sa_tx_after.tdo = dut_vif.TDO;
 					mon_ap_after.write(sa_tx_after);
-					//validationBufferTDO[tdoScan]=dut_vif.TDO;
-					//tdoScan++;
+					validationBufferTDO[tdoScan]=dut_vif.TDO;
+					tdoScan++;
 				end
 			end
 			`endif
