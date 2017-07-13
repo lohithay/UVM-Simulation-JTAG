@@ -1,14 +1,24 @@
+///////////////////////////////////////////////////////////////////////
+////                                                               ////
+////  testbench.svh                                                ////
+////                                                               ////
+////  Project : UVM Simulationsmodell eines JTAG-Interfaces        ////
+////                                                               ////
+////  Author(s):                                                   ////
+////    Serin Varghese                                             ////
+////    Micro and Nano Systems,                                    ////
+////    TU Chemnitz                                                ////
+////                                                               ////
+////  Date: July 2017                                              ////
+////                                                               ////
+////  Notes:                                                       ////
+////  This is the top module for the testbench. It defines the     //// 
+////  DUT and the Interface. This module also starts the test.     ////
+////                                                               ////
+///////////////////////////////////////////////////////////////////////
+
 `include "uvm_macros.svh"
 `include "my_testbench_pkg.svh"
-
-
-// ================================================================== //
-//                                                                    //
-// TOP TEST MODULE                                                    //
-// The top module that contains the DUT and interface.                //
-// This module starts the test.                                       //
-//                                                                    //
-// ================================================================== //
 
 module top;
   import uvm_pkg::*;

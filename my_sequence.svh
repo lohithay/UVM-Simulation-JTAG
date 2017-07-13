@@ -2,23 +2,22 @@
 ////                                                               ////
 ////  my_sequence.svh                                              ////
 ////                                                               ////
-////  This file has been edited for the Project : UVM              ////
-////  Simulationsmodell eines JTAG-Interfaces                      ////
+////  Project : UVM Simulationsmodell eines JTAG-Interfaces        ////
 ////                                                               ////
 ////  Author(s):                                                   ////
 ////    Serin Varghese                                             ////
+////    Micro and Nano Systems,                                    ////
+////    TU Chemnitz                                                ////
 ////                                                               ////
-////  Notes: Codes adapted from EDA Playground example files       ////
+////  Date: July 2017                                              ////
 ////                                                               ////
-////  This the header file that contains the modules/blocks of     ////
-////  uvm. This is called from the testbench.sv file               ////
-////                                                               ////
-////                                                               ////
-///////////////////////////////////////////////////////////////////////
-//// These files contain the following UVM blocks(modules)         ////
-//// - Transaction                                                 ////
-//// - Sequencer                                                   ////
-//// - Driver                                                      ////
+////  Notes:                                                       ////
+////  These files contain the following UVM blocks(modules)        ////
+////  - Transaction                                                ////
+////  - Sequencer                                                  ////
+////  - Driver                                                     ////
+////  - Monitors                                                   ////
+////  - Scoreboard                                                 ////
 ///////////////////////////////////////////////////////////////////////
 //// Revisions:													   ////
 //// 															   ////
@@ -31,37 +30,50 @@
 //// 															   ////
 //// 13 Jun 2017 - The BYPASS and the IDCODE instructions are      ////
 //// 			   implemented									   ////
+//// 															   ////
+//// 27 Jun 2017 - Both the monitors are added                     ////
+//// 			   								            	   ////
+//// 03 Jul 2017 - Scoreboard connected          				   ////
+//// 															   ////
+//// 11 Jul 2017 - Sample/Preload Instruction is implemented	   ////
+//// 															   ////
+//// 13 Jul 2017 - Intest Instruction is implemented			   ////
+//// 															   ////
 /////////////////////////////////////////////////////////////////////// 
 
 
 // DEFINE TO TEST WHICH INSTRUCTION TO EXECUTE
+// Select only one out of the following
 
 //`define BYPASS_INSTR
 //`define IDCODE_INSTR
 //`define SAMPLE_PRELOAD_INSTR
-//`define EXTEST_INSTR
 `define INTEST_INSTR
 
 
 //GLOBAL VARIABLE Declaration
-
 integer DATA_LENGTH = 30;  //Enter the length of the expected datastream for BYPASS Instruction
-bit introduceErrorBypass = 0; 
-bit introduceErrorIdcode = 0;
+bit introduceErrorBypass = 0; // Toggle to 1 to introduce errors, 0 for normal operation - BYPASS Instruction 
+bit introduceErrorIdcode = 0; // Toggle to 1 to introduce errors, 0 for normal operation - IDCODE Instruction
 
 
 bit startValiadation = 0;  //Indicates when the data has to be checked
-bit validationBufferTDI [100];
-bit validationBufferTDO [100];
-bit setPreloadValue[5] =   { 1,    0,   1, 0, 1   };
+bit validationBufferTDI [100]; //Storage register for the valid TDI signals
+bit validationBufferTDO [100]; //Storage register for the valid TDO signals
+
+//For Sample/Preload and INTEST instruction
+// Fill the setPreloadValue according to the bits that are 
+// pushed into the TDI serially
+// The values of the bit are written below.
+bit setPreloadValue[5] =   { 0,    0,   1, 1, 0   };
 //bit setPreloadValue[5] = { Cout, Sum, A, B, Cin };
+
+
 
 // Imports
 import uvm_pkg::*;
 `include "uvm_macros.svh"
 `include "tap_defines.v"
-
-
 
 // ================================================================== //
 //                                                                    //
@@ -149,6 +161,7 @@ class my_driver extends uvm_driver #(my_transaction);
 		integer init     = 0;
 		integer count    = 0;
 		integer polarity = 0;
+		
 		// First toggle reset
 		if(init == 0)
 		begin
@@ -197,7 +210,7 @@ class my_driver extends uvm_driver #(my_transaction);
 					@(posedge dut_vif.TCK);
 				end
 					
-				4: begin //capture ir state
+				4: begin //CAPTURE IR state
 					dut_vif.TMS = 0;		
 					count++;					
 					seq_item_port.item_done();
@@ -205,13 +218,11 @@ class my_driver extends uvm_driver #(my_transaction);
 				end
 				 
 				5: begin //SHIFT IR STATE 
-					for(int i=0; i<=2; i++)//SHIFTING THE IR WITH 4 1's
+					for(int i=0; i<=2; i++)//SHIFTING THE IR WITH 4 1's for BYPASS instruction
 					begin
 						if(i!=0)  seq_item_port.get_next_item(req);
-						
 						dut_vif.TMS = 0;		
 						dut_vif.TDI = 1;		
-						//count++;					
 						seq_item_port.item_done();
 						@(posedge dut_vif.TCK);
 					end
@@ -260,7 +271,7 @@ class my_driver extends uvm_driver #(my_transaction);
 						begin
 							if(i!=0)  seq_item_port.get_next_item(req);
 							dut_vif.TMS = 0;	
-							dut_vif.TDI = req.tdi;
+							dut_vif.TDI = req.tdi; //Random bits are sent to the TDI
 							`uvm_info("DUT", $sformatf("Received TDI=%b, TDO=%b", dut_vif.TDI, dut_vif.TDO), UVM_MEDIUM)							
 							seq_item_port.item_done();
 							@(posedge dut_vif.TCK);			
@@ -319,7 +330,7 @@ class my_driver extends uvm_driver #(my_transaction);
 				 end
 				 
 				5: begin //SHIFT IR STATE 
-					for(int i=0; i<=2; i++)//SHIFTING THE IR WITH 4 1's
+					for(int i=0; i<=2; i++)//SHIFTING THE IR WITH 4'b0010 - IDCODE instruction
 					begin
 						if(i!=0)  seq_item_port.get_next_item(req);
 						dut_vif.TMS = 0;		
@@ -370,7 +381,7 @@ class my_driver extends uvm_driver #(my_transaction);
 				 end
 				 
 				 10: begin //SHIFT DR STATE 
-				 	startValiadation = 1;
+				 	startValiadation = 1; //Only now the monitor and the scoreboard starts collecting the bits
 						for(int i=0; i<=32; i++)//Shfting out the 32 bit IDCODE
 						begin
 							if(i!=0)  seq_item_port.get_next_item(req);
@@ -397,11 +408,11 @@ class my_driver extends uvm_driver #(my_transaction);
 		end //while loop
 		`endif //IDCODE INSTR
 		
-		// `ifdef EXTEST_INSTR
-		// `endif //EXTEST_INSTR
-		
-		 `ifdef INTEST_INSTR
-			while(count<=16 && init ==1)
+		`ifdef INTEST_INSTR
+		 	dut_vif.A   =  setPreloadValue[2];
+			dut_vif.B   =  setPreloadValue[3];
+		 	dut_vif.Cin =  setPreloadValue[4];
+			while(count<=17 && init ==1)
 			begin
 				seq_item_port.get_next_item(req);
 				case(count)
@@ -492,15 +503,16 @@ class my_driver extends uvm_driver #(my_transaction);
 					 end
 
 					 9: begin //CAPTURE DR STATE 
-							dut_vif.TMS = 0;			
+							
+							dut_vif.TMS = 0;							
 							count++;
 							seq_item_port.item_done();
 							@(posedge dut_vif.TCK);			
 					 end
 					 
 					 10: begin //SHIFT DR STATE 
-					 		startValiadation = 1;
-							for(int i=0; i<=4; i++)//Shfting out the bits via BOundary Scan
+					 		//startValiadation = 1;
+							for(int i=0; i<4; i++)//Shfting in the bits for Preloading
 							begin
 								if(i!=0)  seq_item_port.get_next_item(req);
 								dut_vif.TMS = 0;	
@@ -515,7 +527,8 @@ class my_driver extends uvm_driver #(my_transaction);
 					 end
 
 					 11: begin //EXIT1 DR STATE 
-							dut_vif.TMS = 1;			
+							dut_vif.TMS = 1;
+							dut_vif.TDI = setPreloadValue[4];			
 							count++;
 							seq_item_port.item_done();
 							@(posedge dut_vif.TCK);			
@@ -544,11 +557,11 @@ class my_driver extends uvm_driver #(my_transaction);
 					 
 					 15: begin //SHIFT DR STATE 
 					 		startValiadation = 1;
-							for(int i=0; i<=5; i++)//Shfting out the bits via BOundary Scan
+							for(int i=0; i<=4; i++)//Shfting out the bits to test Internal Circuitry
 							begin
 								if(i!=0)  seq_item_port.get_next_item(req);
 								dut_vif.TMS = 0;	
-								dut_vif.TDI = req.tdi;
+								dut_vif.TDI = setPreloadValue[i];
 								//if(introduceErrorIdcode && i>10 && i<15)
 								//	dut_vif.TDO = 1;
 								//`uvm_info("DUT", $sformatf("TDO=%b", dut_vif.TDO), UVM_MEDIUM	)						
@@ -557,12 +570,26 @@ class my_driver extends uvm_driver #(my_transaction);
 							end 
 							count++;
 					 end
-					 
-					 16: begin // SELECT DR SCAN
-							init++;
+
+					 16: begin //EXIT1 DR STATE 
+					 		//init++;
+							dut_vif.TMS = 1;
+							dut_vif.TDI = setPreloadValue[4];			
+							count++;
 							seq_item_port.item_done();
-							@(posedge dut_vif.TCK);
-							break;
+							@(posedge dut_vif.TCK);			
+					 end
+				 
+					 17: begin //Pause DR STATE 
+					 		for (int i = 0; i < 5; i++) 
+					 		begin
+					 			if(i!=0)  seq_item_port.get_next_item(req);
+					 			dut_vif.TMS = 0;
+					 			seq_item_port.item_done();
+								@(posedge dut_vif.TCK);
+					 		end									
+							count++;
+							init++;			
 					 end
 
 					default: break;				
@@ -698,11 +725,13 @@ class my_driver extends uvm_driver #(my_transaction);
 			end //while loop	
 		 `endif //SAMPLE_PRELOAD_INSTR
 		
-		if(init == 2)
+		//ALL the tests to verify the instructions are defined
+		if(init == 2) 
 		begin
 			`uvm_warning("", "TEST COMPLETED!!")
 			`ifdef BYPASS_INSTR compareForBypass(); `endif
 			`ifdef IDCODE_INSTR compareForIdcode(); `endif
+			`ifdef INTEST_INSTR printForIntest(); `endif
 			report_phase(phase);
 		end
 	endtask
@@ -710,11 +739,10 @@ class my_driver extends uvm_driver #(my_transaction);
 	virtual function void compareForBypass();
 		for(integer m=0; m<DATA_LENGTH; m++)
 		begin
-			if(validationBufferTDI[m]==validationBufferTDO[m+2])
+			if(validationBufferTDI[m]==validationBufferTDO[m+2]) // One clock cycle delay. The BYPASS register is a 1-bit register.
 			begin
 				`uvm_warning("compareForBypass", "SAME" )
 				$display("TDI= %b TDO=%b ",validationBufferTDI[m], validationBufferTDO[m+2] );
-
 			end
 			else
 			begin
@@ -724,17 +752,17 @@ class my_driver extends uvm_driver #(my_transaction);
 		end
 	endfunction: compareForBypass
 
-	virtual function void compareForIdcode();
+	virtual function void compareForIdcode(); 
 		bit [31:0] EXPECTED = `IDCODE_VALUE;
 		bit [31:0] RECEIVED;
 
 		for(integer m=0; m<32; m++)
 		begin
-			RECEIVED[m] = validationBufferTDO[m+1];
+			RECEIVED[m] = validationBufferTDO[m+1]; 
 			//$display("%d RECEIVED= %b EXPECTED=%b ",m+1, validationBufferTDO[m+1], EXPECTED[m] );
 		end
 		
-		if(RECEIVED == EXPECTED)
+		if(RECEIVED == EXPECTED) // Comparing the bit stream read out on TDO with the expected value of the IDCODE register
 		begin
 			`uvm_warning("compareForIdcode", "IDCODE MATCHED!" )
 			$display(" RECEIVED IDCODE= %h EXPECTED IDCODE=%h ", RECEIVED, EXPECTED );
@@ -746,11 +774,36 @@ class my_driver extends uvm_driver #(my_transaction);
 	endfunction: compareForIdcode
 
 	virtual function void printForIntest();
-		for(integer m=0; m<5; m++)
+		bit [1:0] EXPECTED;
+
+		//EXPECTED output values
+		{EXPECTED[1], EXPECTED[0]} = setPreloadValue[2] + setPreloadValue[3] + setPreloadValue[4];
+
+		//Comparing each input and output
+		if(EXPECTED[0] != validationBufferTDO[4]) //Checking for Sum
 		begin
-			//RECEIVED[m] = validationBufferTDO[m];
-			$display("A - %d \n B - %d \n Cin - %d \n Sum - %d \n Cout - %d \n",validationBufferTDO[2],validationBufferTDO[3],validationBufferTDO[4],validationBufferTDO[1],validationBufferTDO[0]);
+			`uvm_error("printForIntest", "Sum Value is wrong!")
+			//$display("EXPECTED - %d RECEIVED - %d", EXPECTED[1], validationBufferTDO[4]);
 		end
+		if(EXPECTED[1] != validationBufferTDO[3]) //Checking for Cout
+		begin
+			`uvm_error("printForIntest", "Cout Value is wrong")
+			//$display("EXPECTED - %d RECEIVED - %d", EXPECTED[0], validationBufferTDO[3]);
+		end
+		if(setPreloadValue[2] != validationBufferTDO[5]) //Checking for A
+		begin
+			`uvm_error("printForIntest", "A Value is wrong")
+		end
+		if(setPreloadValue[3] != validationBufferTDO[6]) //Checking for B
+		begin
+			`uvm_error("printForIntest", "B Value is wrong")
+		end
+		if(setPreloadValue[4] != validationBufferTDO[7]) //Checking for Cin
+		begin
+			`uvm_error("printForIntest", "C Value is wrong")
+		end
+
+		$display("A - %d \n B - %d \n Cin - %d \n Sum - %d \n Cout - %d \n",validationBufferTDO[5],validationBufferTDO[6],validationBufferTDO[7],validationBufferTDO[4],validationBufferTDO[3]);
 	endfunction: printForIntest
 
 
@@ -806,19 +859,16 @@ class jtag_monitor_before extends uvm_monitor;
 
 		//Writing the data at every toggling of the TDI pin
 		forever begin
-			//if(startValiadation)
-			//begin
-				@(posedge dut_vif.TCK)
+			@(posedge dut_vif.TCK)
+			begin
+				if(startValiadation)
 				begin
-					if(startValiadation)
-					begin
-						sa_tx.tdi = dut_vif.TDI;
-						mon_ap_before.write(sa_tx);
-						validationBufferTDI[tdiScan]=dut_vif.TDI;
-						tdiScan++;
-					end
+					sa_tx.tdi = dut_vif.TDI;
+					mon_ap_before.write(sa_tx); // This instruction writes the data to the scoreboard
+					validationBufferTDI[tdiScan]=dut_vif.TDI; 
+					tdiScan++;
 				end
-			//end
+			end
 		end
 	endtask: run_phase
 endclass: jtag_monitor_before
@@ -902,6 +952,7 @@ class jtag_monitor_after extends uvm_monitor;
 					sa_tx_after.tdo = dut_vif.TDO;
 					mon_ap_after.write(sa_tx_after);
 					validationBufferTDO[tdoScan]=dut_vif.TDO;
+					//$display("%d $time() %d Value of TDO - %d",tdoScan, $time, validationBufferTDO[tdoScan]);
 					tdoScan++;
 				end
 			end
@@ -954,7 +1005,7 @@ class jtag_scoreboard extends uvm_scoreboard;
 		forever begin
 			before_fifo.get(transaction_before);
 			after_fifo.get(transaction_after);
-			`uvm_warning("", "Got into FIFO!")
+			//`uvm_warning("", "Got into FIFO!")
 		end
 	endtask: run
 endclass: jtag_scoreboard

@@ -1,23 +1,22 @@
 ///////////////////////////////////////////////////////////////////////
 ////                                                               ////
-////  my_sequence.svh                                              ////
+////  my_testbench_pkg.svh                                         ////
 ////                                                               ////
-////  This file has been edited for the Project : UVM              ////
-////  Simulationsmodell eines JTAG-Interfaces                      ////
+////  Project : UVM Simulationsmodell eines JTAG-Interfaces        ////
+////                                                               ////
 ////                                                               ////
 ////  Author(s):                                                   ////
 ////    Serin Varghese                                             ////
+////    Micro and Nano Systems,                                    ////
+////    TU Chemnitz                                                ////
 ////                                                               ////
-////  Notes: Codes adapted from EDA Playground example files       ////
-////                                                               ////
-////  This the header file that contains the modules/blocks of     ////
-////  uvm. This is called from the testbench.sv file               ////
-////                                                               ////
+////  Date: July 2017                                              ////
 ////                                                               ////
 ///////////////////////////////////////////////////////////////////////
 //// These files contain the following UVM blocks(modules)         ////
 //// - Agent                                                       ////
-//// - Environement                                                ////
+//// - Environment                                                 ////
+//// - Test                                                        ////
 ///////////////////////////////////////////////////////////////////////
 
 //Defining the name of the package
@@ -49,6 +48,7 @@ class my_agent extends uvm_agent;
 	endfunction
 
 	// Build Phase
+	//The build phase instanciates all the modules built inside the agent
 	function void build_phase(uvm_phase phase);
 		super.build_phase(phase);
 		
@@ -62,6 +62,7 @@ class my_agent extends uvm_agent;
 	endfunction : build_phase
 
 	// Connect Phase
+	//interconnection between the modules
 	function void connect_phase(uvm_phase phase);
 		super.connect_phase(phase);		
 		driver.seq_item_port.connect(sequencer.seq_item_export);		

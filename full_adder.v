@@ -1,7 +1,21 @@
+///////////////////////////////////////////////////////////////////////
+////                                                               ////
+////  full_adder.v                                                 ////
+////                                                               ////
+////  Project : UVM Simulationsmodell eines JTAG-Interfaces        ////
+////                                                               ////
+////  Author(s):                                                   ////
+////    Serin Varghese                                             ////
+////    Micro and Nano Systems,                                    ////
+////    TU Chemnitz                                                ////
+////                                                               ////
+////  Date: July 2017                                              ////
+////                                                               ////
+////  Notes:                                                       ////
+////  A full adder module is defined                               ////
+////                                                               ////
+///////////////////////////////////////////////////////////////////////
 
-
-
-// This is not a top module 
 module full_adder(
 	input_a,
 	input_b,
@@ -23,7 +37,6 @@ reg output_cout;
 
 assign output_sum_o = output_sum;
 assign output_cout_o = output_cout;
-//assign {output_cout, output_sum} = input_cin + input_a + input_b;
 
 always @(*) begin
    {output_cout, output_sum} <= input_cin + input_a + input_b;

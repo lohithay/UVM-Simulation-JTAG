@@ -98,16 +98,7 @@ module tap_top(
                 update_dr_o,
                 capture_dr_o,
 				
-				extest_select_o,
-				sample_preload_select_o,
-				idcode_select_o,
-				intest_select_o,
-				debug_select_o,
-				bypass_select_o,
-
-				bs_chain_tdo_i,
-
-				update_ir_o
+				bs_chain_tdo_i
               );
 
 
@@ -117,7 +108,6 @@ input   tck_pad_i;      // JTAG test clock pad
 input   trstn_pad_i;     // JTAG test reset pad
 input   tdi_pad_i;      // JTAG test data input pad
 input   bs_chain_tdo_i;
-
 output  tdo_pad_oe;      // JTAG test data output pad 
 
 // TAP states
@@ -127,7 +117,6 @@ output  capture_dr_o;
 
 // Wires which depend on the state of the TAP FSM
 reg     test_logic_reset;
-
 reg     run_test_idle;
 reg     select_dr_scan;
 reg     capture_dr;
@@ -152,15 +141,6 @@ reg     intest_select;
 reg     debug_select;
 reg     bypass_select;
 
-output     extest_select_o;
-output     sample_preload_select_o;
-output     idcode_select_o;
-output     intest_select_o;
-output     debug_select_o;
-output     bypass_select_o;
-
-output  update_ir_o;
-
 // TDO and enable
 reg     tdo_pad_o;
 reg     tdo_padoe_o;
@@ -170,14 +150,6 @@ assign tdo_pad_oe = tdo_pad_o;
 assign shift_dr_o = shift_dr;
 assign capture_dr_o = capture_dr;
 assign update_dr_o = update_dr;
-assign update_ir_o = update_ir;
-
-
-assign extest_select_o = extest_select;
-assign sample_preload_select_o = sample_preload_select;
-assign intest_select_o = intest_select;
-assign bypass_select_o = bypass_select;
-assign idcode_select_o = idcode_select;
 
 /**********************************************************************************
 *                                                                                 *
