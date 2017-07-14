@@ -13,7 +13,6 @@ Files to be added to one Questasim project:
 - tap_top.v
 - testbench.sv
 - InputCell.v
-- OutputCell.v
 - my_sequence.svh
 - my_testbench_pkg.svh
 - full_adder.v
