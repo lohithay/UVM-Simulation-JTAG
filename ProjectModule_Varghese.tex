@@ -14,6 +14,8 @@
 \usepackage{enumitem}
 \usepackage{enumerate}
 \usepackage{wrapfig}
+\usepackage{rotating}
+
 
 % opening
 \title{\Huge{UVM-Simulationsmodell eines JTAG-Interfaces}}
@@ -27,6 +29,9 @@
 \newpage}
 
 \afterpage{\blankpage}
+
+\renewcommand*\footnoterule{}
+
 
 \geometry{
   body={7in, 8.5in},
@@ -72,24 +77,28 @@ Technische Universität Chemnitz\\
 \end{center}
 
 This is to certify that the work entitled \textgravedbl UVM-Simulationsmodell eines JTAG-Interfaces \textacutedbl is a bonafide work carried out by 
-(\textbf{Varghese, Serin John; \textit{Immatrikulation Nr. 328799}})
+(\textbf{Varghese, Serin John; \textit{Immatrikulation Nr. 328749}})
 is a contribution to Schaltkreis- und Systementwurf, Masters in Micro and Nano
 Systems, Technische Universität Chemnitz.
 
 \vfill
-\begin{minipage}[t]{0.5\textwidth}%
+\begin{minipage}[t]{0.3\textwidth}%
 \emph{Betreuer/Prüfer}\\
 Dipl.-Ing. Marcel Putsche\\
-SSE Department,\\
+Professur Schaltkreis- und Systementwurf,\\
 TU Chemnitz
-\end{minipage}\hspace{0.5cm}
-\begin{minipage}[t]{0.5\textwidth}%
+\end{minipage}\hspace{0.1cm}
+\begin{minipage}[t]{0.3\textwidth}%
 \emph{Betreuer/Prüfer}\\
 Dipl.-Ing. Thomas Horn\\
-SSE Department,\\
+Professur Schaltkreis- und Systementwurf,\\
 TU Chemnitz, \\
-
-
+\end{minipage}\hspace{0.1cm}
+\begin{minipage}[t]{0.3\textwidth}%
+\emph{Prüfer}\\
+Prof. Dr. Göran Herrmann\\
+Professur Schaltkreis- und Systementwurf,\\
+TU Chemnitz, \\
 \end{minipage}\vfill
 \vfill
 
@@ -112,14 +121,14 @@ Place &: & Chemnitz\tabularnewline
 
 %
 %
-
+%===============================================================================================================
 \newpage
 
 \begin{abstract}
-
-%
-\footnote{Keywords: Universal Verification Methodology, JTAG, verification component, TAP controller, boundary scan}
+A verification component is designed for a device with a JTAG interface. We have selected a full adder module with JTAG capability as our device under test. The instructions of Idcode, Bypass, Sample/Preload and Intest are implemented. All the implemented instructions are IEEE 1149.1 standard compliant. This verification component is designed with the use of the Universal Verification Methodology. Using the modules of the UVM environment, we have given the DUT a set of constrained stimulus and observed the response. The designed VC has the capability to introduce errors to understand how the VC would react to runtime errors. The errors, if any, are printed out on the console. This VC gives us an advantage of reusability wherein this full adder module can be replaced by any other module and the tests can be repeated with little effort. In this project we have designed the advanced DUTs with JTAG capability and verification environment, tested the working of the JTAG instructions and finally compared the expected data with the one that is actually observed. \\
 \end{abstract}
+\footnote{Keywords: Universal Verification Methodology, JTAG, verification component, TAP controller, boundary scan}
+
 
 %===============================================================================================================
 \newpage
@@ -171,7 +180,7 @@ JTAG overcomes this problem, by placing cells between the external connections a
 \begin{figure}[ht]
 \centering
 \includegraphics[width=6cm,height=6cm]{images/introJtagLayout}
-\caption{JTAG Block Diagram}
+\caption{JTAG Block Diagram \cite{xjtag2}}
 \end{figure}
 
 There is also an option to sample the data values as they pass between the core logic and the pins during the normal operation of the device.
@@ -186,12 +195,6 @@ The JTAG interface adds four extra pins to each device:
 
 If a circuit contains more than one JTAG-compliant device, these can be linked together to form a JTAG chain. In a JTAG chain the data output from the first device becomes the data input to the second device; the control and the clock signals are common to all the devices in the chain. Fig. provides a representation of a simple JTAG chain containing three devices.
 
-%ADD IMAGE HERE
-\begin{figure}[ht]
-\centering
-\includegraphics[width=10cm,height=6cm]{introJtagBlock}
-\caption{Simple JTAG Device1}
-\end{figure}
 
 \subsubsection{Test Access Port (TAP)}
 Each test logic function is accessed through the TAP. The five pins associated with the TAP are listed on the \ref{table:tap} with their corresponding descriptions. Four pins - TMS, TCK, TDI, and TDO - are always required for JTAG operation. The fifth pin, TRST, is optional. These pins are dedicated pins - used only with the test logic. 
@@ -222,7 +225,7 @@ TRST overrides the behavior of the TMS and TCK. In other words, asserting TRST r
 \centering
 \includegraphics[width=10cm,height=6cm]{jtag_tap}
 \label{fig:jtag_tap}
-\caption{TAP CONTROLLER}
+\caption{TAP CONTROLLER \cite{fpga4fun}}
 \end{figure}
 
 The 16 states of the TAP controller finite state machine are shown in the fig \ref{}. The 1s and 0s shown adjacent to the state transitions represent the TMS values that must be present at the time of a rising edge at TCK for a state transition to occur. In the states that include the letters -IR, the instruction register operates. In the states that include the letters -DR, the test data registers operates (bypass, boundary scan).
@@ -303,8 +306,6 @@ This is an optional test data register that allows the manufacturer, part number
 \end{description}
 
 
-\newpage
-\pagebreak
 \subsection{Introduction to Verification Methodologies:}
 
 
@@ -344,12 +345,12 @@ It is basically a methodology for the functional verification of digital hardwar
 \textbf{History}
 \ \\
 In December 2009, a technical subcommittee of Accellera - a standards organization in the electronic design automation (EDA) industry - voted to establish the UVM and decided to base this new standard on OVM 2.1.1, a verification methodology developed jointly in 2007 by Cadence Design Systems and Mentor Graphics.
-In February 21, 2011, Accelera approved the 1.0 version of UVM. It included a Reference Guide, a Reference Implementation in the form of SystemVerilof base class library, and a User Guide.
+In February 21, 2011, Accelera approved the 1.0 version of UVM. It included a Reference Guide, a Reference Implementation in the form of SystemVerilog base class library, and a User Guide.
 \ \\
 \ \\
 \textbf{Checkers, Coverage and Constraints}
 \ \\
-Constrained random verificaiton relies on Checkers, Coverage and Constraints and these are supported by explicit features of the SystemVerilog language.
+Constrained random verification relies on Checkers, Coverage and Constraints and these are supported by explicit features of the SystemVerilog language.
 
 Firstly, checkers ensure functional correctness. Nothing is gained by throwing more and more random stimulus into a design to take functional coverage to ever higher levels unless the design-under test is being checked automatically for functional correctness. Checkers can be implemented by SystemVerilog assertions or using regular procedural code. UVM provides mechanisms and guidelines for building checkers into the verification environment and for logging reports.
 
@@ -369,23 +370,7 @@ The architecture of UVM has been designed to encourage modular and layered verif
 %===============================================================================================================
 \newpage
 \pagebreak
-\section{Objective and Specifications}
-
-Development of a Universal Verification Methodology environment of the JTAG interface. It will contain the following functionality:
-
-\begin{itemize}
-\item Existing and verified IP core of a JTAG interface
-\item Execution of the following Instructions: \\EXTEST, INTEST, SAMPLE/PRELOAD, BYPASS, IDCODE according to IEEE1149.1 standard
-\item Enhanced test bench(es) to fully test the DUT
-\end{itemize}
-
-The simulation runs as well as the occurring challenges are documented.
-\\ \textbf{IDE used:} Questa\textregistered Advanced Simulator, Mentor Graphics
-
-%===============================================================================================================
-\newpage
-\pagebreak
-\section{Developed Modules:}
+\section{Literature Survey}
 
 \textbf{Blocks in UVM}
 \ \\
@@ -465,7 +450,7 @@ The most common ones are:
 \ \\
 This macro registers the new class type. It is used when deriving new classes like a new agent, driver, monitor and so on.
 
-\item `uvm\textunderscore fie`ld\textunderscore init
+\item `uvm\textunderscore field\textunderscore init
 \ \\
 This macro registers a variable in the UVM factory and implements some functions like copy(), compare() and print().
 
@@ -477,6 +462,27 @@ This is a very useful macro which we have used to print messages from the UVM en
 \end{itemize}
 
 
+%===============================================================================================================
+\newpage
+\pagebreak
+\section{Objective and Specifications}
+
+Development of a Universal Verification Methodology environment of the JTAG interface. It will contain the following functionality:
+
+\begin{itemize}
+\item Existing and verified IP core of a JTAG interface
+\item Execution of the following Instructions: \\EXTEST, INTEST, SAMPLE/PRELOAD, BYPASS, IDCODE according to IEEE1149.1 standard
+\item Enhanced test bench(es) to fully test the DUT
+\end{itemize}
+
+The simulation runs as well as the occurring challenges are documented.
+\\ \textbf{IDE used:} Questa\textregistered Advanced Simulator, Mentor Graphics
+
+%===============================================================================================================
+\newpage
+\pagebreak
+\section{Developed Modules:}
+
 \subsection{Device Under Test with JTAG capability}
 The designed DUT is JTAG compliant. The objective of our project is to develop a UVM Test for a JTAG interface. We would design a basic full adder with JTAG capabilities. The full adder module can be replaced with any other DUTs and the same testbench would implement the same JTAG tests accurately.
 
@@ -485,6 +491,7 @@ The designed DUT is JTAG compliant. The objective of our project is to develop a
 \centering
 \includegraphics[width=12cm,height=10cm]{AdvancedDut}
 \caption{Developed Design Under Test}
+\label{fig:developed DUT}
 \end{figure}
 
 \FloatBarrier
@@ -499,9 +506,9 @@ Data is passed serially through the Boundary Scan Registers which help in debugg
 \begin{figure}[ht]
 \centering
 \includegraphics[width=10cm,height=6cm]{BoundaryScanCell}
-\caption{Boundary Scan Cell}
+\caption{Boundary Scan Cell \cite{corelis}}
+\label{fig:Boundary Scan Cell}
 \end{figure}
-
 
 \textbf{Output Boundary Scan Cell:}
 This is the Boundary Scan Cell that is connected to the output side of the Full Adder Module. When the DUT is running in JTAG mode, then the TDI and TDO are connected between the boundary scan registers and this path is called the 'Scan Path'. The JTAG mode, the value in the instruction register decides the flow of information from the Scan Path. In normal operation mode, these boundary scan cells pass the Full Adder outputs to the outputs of the DUT.
@@ -511,13 +518,15 @@ This is the Boundary Scan Cell that is connected to the output side of the Full 
 \centering
 \includegraphics[width=17cm,height=4cm]{OutputCellCode}
 \caption{Output Cell Code}
+\label{fig: Output Cell Code}
 \end{figure}
 
 %ADD IMAGE HERE
 \begin{figure}[ht]
 \centering
 \includegraphics[width=7cm,height=4cm]{OutputDUT}
-\caption{Output DUT}
+\caption{Output Section of the DUT}
+\label{fig: Output DUT}
 \end{figure}
 
 \FloatBarrier
@@ -529,13 +538,15 @@ This is the Boundary Scan Cell that is connected to the output side of the Full 
 \centering
 \includegraphics[width=17cm,height=3cm]{InputCellCode}
 \caption{Input Cell Code}
+\label{fig: Input Cell Code}
 \end{figure}
 
 %ADD IMAGE HERE
 \begin{figure}[ht]
 \centering
 \includegraphics[width=7cm,height=4cm]{InputDUT}
-\caption{Input Cell Code}
+\caption{Input Section of the DUT}
+\label{fig: Input DUT}
 \end{figure}
 
 In addition to the parallel in, parallel out, serial in and serial out lines, the captureDR, ShiftDR, UpdateDR and TCK pins are also passed to this module from the TAP controller module. These signals indicate the Boundary Scan of the mode in which the DUT is operating in.
@@ -576,6 +587,7 @@ The full adder module implements the basic operations of the Full adder. It has 
 \centering
 \includegraphics[width=11cm,height=5cm]{fullAdderCode}
 \caption{Full Adder Module Code}
+\label{fig: Full Adder Code}
 \end{figure}
 
 %===============================================================================================================
@@ -585,8 +597,9 @@ This contains all the modules that are required for the verification environment
 %ADD IMAGE HERE
 \begin{figure}[ht]
 \centering
-\includegraphics[width=12cm,height=8cm]{phase3Environment}
+\includegraphics[width=12cm,height=8cm]{phaseZEnvironment}
 \caption{Designed Verification Environment}
+\label{fig: Designed Verification Environment}
 \end{figure}
 
 Each of these blocks are explained in detail below. It also contains actual snapshots of the code for easier understanding.
@@ -730,21 +743,15 @@ The config\_db places the defined virtual interface in the database so that it c
 \\
  \\
 \underline{\textbf{Tests implemented in the driver:}}\\
-\textbf{Bypass Instruction} \\
-The selection of the Bypass instruction is done by declaring \textit{`define BYPASS\_INSTR}.\\ \underline{Note:} Do not run two tests simultaneously. \\
-The tests for the bypass instruction are added in the run phase of the driver. The comments in the code mention exactly what each step does. Variable data stream length can be defined. A global variable \textit{DATA\_LENGTH} is defined in the \textit{my\_sequence.svh} file. The value will correspond to the length of the data stream that is sent from the TDI to the TDO. \\
- \\
-The values of the TDI and TDO are stored by the monitor and then written into the scoreboard. The function \textit{compareForBypass()} compares the TDI and TDO values and the result is printed in the console of the QuestaSim during simulation. \\
- \\
- To introduce error into the bypass instruction the variable \textit{introduceErrorBypass} should be set to 1. This introduces a stuck-at-1 error at TDO pin. The function \textit{compareForBypass()} compares the two data streams and gives out an error on the console as the TDO and the TDI values do not match.\\
- \\
-\textbf{Idcode Instruction} \\
-The selection of the Idcode instruction is done by declaring \textit{`define IDCODE\_INSTR}.\\
-The tests for the IDCODE are also defined in the run phase of the driver. The comments in the code mention exactly what each step does. Here, variable data streams cannot be defined as the length of the IDCODE register is defined in the IEEE Standard 1149.1\\
- \\
-The values of the TDI and TDO are stored by the monitor and then written into the scoreboard. The function \textit{compareForIdcode()} compares the TDO values with the values of the IDCODE defined in the DUT . The result is printed in the console of the QuestaSim during simulation. Incase of an error, the IDCODE that is read by the verification environment is also printed out on the console. \\
- \\
- To introduce error into the IDCODE instruction the variable \textit{introduceErrorIdcode} should be set to 1. This introduces an error in the value that is read from the IDCODE register. The function \textit{compareForIdcode()} compares the two data streams and gives out an error on the console as the TDO values and the IDCODE register values do not match.
+
+\begin{itemize}[noitemsep]
+
+\item Bypass Instruction
+\item Idcode Instruction
+\item Intest Instruction
+\item Sample/Preload Instruction
+
+\end{itemize}
 
 %ADD IMAGE HERE
 \begin{figure}[ht]
@@ -788,17 +795,14 @@ The scoreboard module is extended from the uvm\_scoreboard class. uvm\_scoreboar
 \caption{Scoreboard code}
 \end{figure}
 
-
-
-
 %===============================================================================================================
 \FloatBarrier
 \newpage
 \pagebreak
 
-\section{Testing and Problems faced}
+\section{Testing and Debugging Phases}
 \subsection{Phase I: Basic communication}
-In this phase, the DUT that we use is a dummy DUT. Its only work is to print out the data as it receives it. The interface of the DUT is similar to that of an 8-bit memory block with data address and data registers. A transaction is defined and a sequence is passed to a sequencer. This sequence then calls on to the driver to access the DUT. The environment used to develop the code is EDAPlayground. EDAPlayground is an online simulator where there is no download required to run the code. For initial testing, this was easier to use as the samples codes are readily available.  
+In this phase, the DUT that we use is a dummy DUT. Its only work is to print out the data as it receives it. The interface of the DUT is similar to that of an 8-bit memory block with data address and data registers. A transaction is defined and a sequence is passed to a sequencer. This sequence then calls on to the driver to access the DUT. The environment used to develop the code is EDAPlayground. EDAPlayground is an online simulator where there is no download required to run the code. For initial testing, this was easier to use as the samples codes are readily available. The complete environment is shown in Fig. \ref{fig: Phase I testing enviroment}.
 The work-flow is given below:
 
 \begin{itemize}[noitemsep]
@@ -815,7 +819,8 @@ The work-flow is given below:
 \begin{figure}[ht]
 \centering
 \includegraphics[width=12cm,height=8cm]{images/phase1Environment}
-\caption{Basic Communication Environment}
+\caption{Phase 1 Testing Environment\\Here the UVM environment is connected to the designed DUT}
+\label{fig: Phase I testing enviroment}
 \end{figure}
 
 \subsubsection{Testing Results for Phase I}
@@ -824,83 +829,174 @@ The work-flow is given below:
 \centering
 \includegraphics[width=16cm,height=2cm]{images/testing1}
 \caption{Phase I testing}
+\label{fig: Phase I Testing}
 \end{figure}
 
-The system reset is held low and normal operations are let to run. Randomized data and address is sent. From the waveform in Fig.\ref{?}, we can see that these signals are toggling with the input. The input parameters are randomized using the default \textit{randomize()} command in SystemVerilog. The input to the DUT here is a 8-bit data bus and the constraint on the value of the input is from 0 to 255. 
+The system reset is held low and normal operations are let to run. Randomized data and address is sent. From the waveform in Fig.\ref{fig: Phase I Testing}, we can see that these signals are toggling with the input. The input parameters are randomized using the default \textit{randomize()} command in SystemVerilog. The input to the DUT here is a 8-bit data bus and the constraint on the value of the input is from 0 to 255. 
 
 \subsubsection{Testing Conclusion for Phase I}
 With this we have established a one-directional communication with our DUT. Also, the UVM Phases(build, connect, run and report) were tested. Our further developments have been built upon this basic building blocks. Here, we have not yet connected a monitor and scoreboard block. This would be included in phase III.
 \ \\
 \FloatBarrier
-\subsection{Phase II: Adding JTAG DUT}
+\subsection{Phase II: Adding TAP controller DUT}
 
-Phase 2 development was built over the existing architecture in Phase 1. Here we have added 
+Phase 2 development was built over the existing architecture in Phase 1. Here we have replaced the dummy DUT with a DUT that has a TAP controller inbuilt into it. The development environment was now changed from the EDAPlayground to the QuestaSim IDE. The codes from the EDAPlayground examples however do not run as it is on QuestaSim. The environment variables for the UVM library have to be properly defined and we have to take care of the \`includes in our program. \textit{import uvm\_pkg::*;} has be included as can be seen from the files in the project. The representation of the environment is shown in Fig. \ref{fig: Phase II Environment}.
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=12cm,height=8cm]{images/phase2Environment}
-\caption{Environment after JTAG DUT addition}
+\includegraphics[width=12cm,height=7cm]{images/phase2Environment}
+\caption{Phase II Environment: TAP Controller DUT added}
+\label{fig: Phase II Environment}
 \end{figure}
-
+\FloatBarrier
 \subsubsection{Testing Results for Phase II}
-\ \\
-\ \\
+
+\paragraph{BYPASS Instruction test}\mbox{}\\
+ \\\underline{Steps in which the BYPASS Instruction is executed:}
+\begin{itemize}[noitemsep]
+\item Move through the TAP controller states and reach the SHIFT IR state.
+\item Shift-in the BYPASS instruction(4\'b1111) into the Instruction register. This means that the TAP controller remains at the SHIFT IR for 4 clock cycles. The value of TMS will be held to 0. TDI will be held to 1 to send in 4'b1111 into the IR. This will inform the TAP controller that the BYPASS instruction is to be executed
+\item Move out of the Instruction Register state and navigate through the TAP controller states to reach the SHIFT DR state.
+\item Now for every clock cycle, TDO will follow the data from TDI with a delay of one clock cycle. This one clock cycle delay is because of the addition of 1-bit Bypass register in the chain between TDI and TDO. In the VC we pass random signals to TDI and compare the same with the signals observed at TDO.
+\end{itemize}
+
+The selection of the Bypass instruction is done by declaring \textit{`define BYPASS\_INSTR}.\\ \underline{Note:} Do not run two tests simultaneously. \\
+The tests for the bypass instruction are added in the run phase of the driver. The comments in the code mention exactly what each step does. Variable data stream length can be defined. A global variable \textit{DATA\_LENGTH} is defined in the \textit{my\_sequence.svh} file. The value will correspond to the length of the data stream that is sent from the TDI to the TDO. \\
+ \\
+The values of the TDI and TDO are stored by the monitor and then written into the scoreboard. The function \textit{compareForBypass()} compares the TDI and TDO values and the result is printed in the console of the QuestaSim during simulation. \\
+ \\
+ To introduce error into the bypass instruction the variable \textit{introduceErrorBypass} should be set to 1. This introduces a stuck-at-1 error at TDO pin. The function \textit{compareForBypass()} compares the two data streams and gives out an error on the console as the TDO and the TDI values do not match.\\
+
+\begin{sidewaysfigure}[ht]
+\centering
+\includegraphics[width=\textwidth, height=13cm]{images/phase2_bypass}
+\caption{BYPASS testing.\\ The TDO follows the TDI with a one clock cycle delay}
+\label{fig:Bypass LandscapeFigure}
+\end{sidewaysfigure}
+
+\FloatBarrier
+\paragraph{IDCODE Instruction test}\mbox{}\\
+\underline{Steps in which the IDCODE Instruction is executed:}
+\begin{itemize}[noitemsep]
+\item Move through the TAP controller states and reach the SHIFT IR state.
+\item Shift-in the IDCODE instruction(4\'b0010) into the Instruction register. This means that the TAP controller remains at the SHIFT IR for 4 clock cycles. The value of TMS will be held to 0. TDI will be 0 for the 1st clock cycle. 1 for the next clock cycle and 0 for the 3rd and the 4th clock cycle. This will inform the TAP controller that the IDCODE instruction is to be executed
+\item Move out of the Instruction Register state and navigate through the TAP controller states to reach the SHIFT DR state.
+\item The IDCODE register is a 32-bit register which is defined in a TAP controller. This contains a unique ID that used to identify it. Now for every clock cycle in the SHIFT DR state, this IDCODE register is connected between the TDO and the TDI. The IDCODE is shifted out serially.
+\end{itemize}
+
+The selection of the Idcode instruction is done by declaring \textit{`define IDCODE\_INSTR}.\\
+The tests for the IDCODE are also defined in the run phase of the driver. The comments in the code mention exactly what each step does. Here, variable data streams cannot be defined as the length of the IDCODE register is defined in the IEEE Standard 1149.1\\
+ \\
+The values of the TDI and TDO are stored by the monitor and then written into the scoreboard. The function \textit{compareForIdcode()} compares the TDO values with the values of the IDCODE defined in the DUT . The result is printed in the console of the QuestaSim during simulation. Incase of an error, the IDCODE that is read by the verification environment is also printed out on the console. \\
+ \\
+ To introduce error into the IDCODE instruction the variable \textit{introduceErrorIdcode} should be set to 1. This introduces an error in the value that is read from the IDCODE register. The function \textit{compareForIdcode()} compares the two data streams and gives out an error on the console as the TDO values and the IDCODE register values do not match. The waveforms are shown in Fig. \ref{fig:IDCODE LandscapeFigure}
+
+\newpage
+\pagebreak
+
+\begin{sidewaysfigure}[ht]
+\centering
+\includegraphics[width=\textwidth, height=13cm]{images/phase2_idcode}
+\caption{IDCODE testing\\a. 32 bit IDCODE is shifted out to the TDO. This can be verified from the waveform.\\b. The IDCODE of the DUT is h149511c3}
+\label{fig:IDCODE LandscapeFigure}
+\end{sidewaysfigure}
+
+\FloatBarrier
 \subsubsection{Testing Conclusion for Phase II}
-\ \\ 
-\ \\
+The TAP controller states can now be navigated through easily. For the further development we have a concrete understanding of how the algorithm works. Also, we have tested the operations of the BYPASS and the IDCODE instructions. All the testing so far, however, has been done using the waveforms of the QuestaSim IDE. To improve the readability and usability of the testbench, we will be implementing monitors and scoreboards.
 
 
 %problems faced
 \FloatBarrier
 \subsection{Phase III: Adding Monitor and Scoreboard}
+Two monitors are added to the UVM environment. The first is connected to the TDI input and the second is connected to the TDO output. These information are also written to the scoreboard. The changes that are made to the environment are as shown in Fig. \ref{fig:Phase III Environment}.
 
 \begin{figure}[ht]
 \centering
 \includegraphics[width=12cm,height=8cm]{images/phase3Environment}
-\caption{Complete Environment with Monitors and Scoreboard}
+\caption{Phase III Environment: with Monitors and Scoreboard}
+\label{fig:Phase III Environment}
 \end{figure}
 
 \subsubsection{Testing Results for Phase III}
 
-\ \\
-\ \\
-\subsubsection{Testing Conclusion for Phase III}
-\ \\ 
-\ \\
+Functions are written that read the information that is received by both the monitors and compares the two. \textit{compareForBypass() and compareForIdcode()} compares these information and invokes the uvm\_error functions.
 
-%===============================================================================================================
-\newpage
-\pagebreak
-\section{Results}
-\subsection{Instruction: IDCODE}
-\ \\
-\ \\
-\subsection{Instruction: BYPASS}
-\ \\
-\ \\
 \begin{figure}[ht]
 \centering
-\includegraphics[width=17cm,height=7cm]{images/testing_BYPASS_collage}
-\caption{Result of the BYPASS instruction testing}
+\includegraphics[width=\textwidth,height=8cm]{images/phase3_bypass}
+\caption{Complete Environment with Monitors and Scoreboard}
 \end{figure}
 
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth,height=8cm]{images/phase3_idcode}
+\caption{Complete Environment with Monitors and Scoreboard}
+\end{figure}
+
+
+\subsubsection{Testing Conclusion for Phase III}
+
+By this addition we have a complete testbench where the user does not have to physically check the waveforms for verification. The functions for comparison return the result on the console. The comparison starts when the \textit{startValidation} flag is raised.
+
+
 \FloatBarrier
-\subsection{Instruction: EXTEST}
-\ \\
-\ \\
+\subsection{Phase IV: Adding Boundary Scan registers}
+Boundary Scan Registers are connected to every input or output pin. These control the data traveling into and out of the pins. For testing the INTEST and the SAMPLE/PRELOAD, these BSRs are imperative. During normal operation, the data is bypassed from the BSR. During the SHIFT DR state, the all the BSRs are connected serially between the TDO and the TDI.
 
-\subsection{Instruction: INTEST}
-\ \\
-\ \\
+\begin{figure}[ht]
+\centering
+\includegraphics[width=12cm,height=8cm]{images/phase4Environment}
+\caption{Complete Environment }
+\end{figure}
 
-\subsection{Instruction: SAMPLE/HOLD}
+\subsubsection{Testing Results for Phase IV}
+\paragraph{SAMPLE/PRELOAD Instruction test}\mbox{}\\
+\underline{Steps in which the SAMPLE/PRELOAD Instruction is executed:}
+\begin{itemize}[noitemsep]
+\item Move through the TAP controller states and reach the SHIFT IR state.
+\item Shift-in the SAMPLE/PRELOAD instruction(4\'b0001) into the Instruction register. This means that the TAP controller remains at the SHIFT IR for 4 clock cycles. The value of TMS will be held to 0. TDI will be logic 1 for the 1st clock cycle and logic 0 for the next three clock cycles. This will inform the TAP controller that the SAMPLE/PRELOAD instruction is to be executed.
+\item Move out of the Instruction Register state and navigate through the TAP controller states to reach the SHIFT DR state.
+\item The Boundary scan cells are connected between the TDI and the TDO. The boundary scan cells are therefore filled-in(Preloaded) with the data stream from the TDI. At each clock cycle, the bits are shifted through. 
+\item By accessing the data received on the TDO we read(sample) the data that was on the pins.
+\end{itemize}
+
+\paragraph{INTEST Instruction test}\mbox{}\\
+\underline{Steps in which the INTEST Instruction is executed:}
+\begin{itemize}[noitemsep]
+\item Move through the TAP controller states and reach the SHIFT IR state.
+\item Shift-in the INTEST instruction(4\'b1001) into the Instruction register. This means that the TAP controller remains at the SHIFT IR for 4 clock cycles. The value of TMS will be held to 0. TDI will be logic 1 for the 1st clock cycle, logic 0 for the next two clock cycles and logic 1 for the 4th clock cycle. This will inform the TAP controller that the INTEST instruction is to be executed.
+\item Move out of the Instruction Register state and navigate through the TAP controller states to reach the SHIFT DR state.
+\item The Boundary scan cells are connected between the TDI and the TDO. The boundary scan cells are therefore filled-in(Preloaded) with the data stream from the TDI. At each clock cycle, the bits are shifted through. 
+\item By reading the data received on the TDO we read(sampled) the data that was on the pins.
+\item Move out of the Shift DR state and navigate through the TAP states and reach the SHIFT DR again.
+\item Shift out the Boundary Scan register data via TDO. The result verifies the working of the internal circuitry(Intest) also.
+\end{itemize}
+\begin{figure}[ht]
+\centering
+\includegraphics[width=12cm,height=8cm]{images/phase4_intest}
+\caption{INTEST Console Output}
+\end{figure}
+\FloatBarrier
+\subsubsection{Testing Conclusion for Phase IV}
 \ \\
-\ \\
+The working of the boundary scan registers is tested. The BSR is successful in both parallel loading and serial transmission of the data. The Sample/Preload and the Intest operations, test all the conditions of operation of the BSRs.
 
 
+
+
+\begin{sidewaysfigure}[ht]
+\centering
+\includegraphics[width=\textwidth, height=13cm]{images/phase4_intest_wave}
+\caption{INTEST testing}
+\label{fig:LandscapeFigure}
+\end{sidewaysfigure}
 %===============================================================================================================
 \newpage
 \pagebreak
+\FloatBarrier
+
 \section{Conclusion}
 
 We have now implemented a Device under test with JTAG capabilities. This can now be further extended to any DUT that is designed by replacing the \textit{full\_adder.v} file with any file that has the DUT to be tested. Only \textit{top\_module.v} needs to be modified for the instantiation of the modules. The UVM environment would remain the same and we could test the complete functionality of the JTAG instructions.
@@ -951,8 +1047,14 @@ Provision has also been made to intentionally introduce errors into the testing 
 \bibitem[16]{edaplayground} {\em EDA Playground}
 \url{https://www.edaplayground.com}
 
-\bibitem[16]{edaplayground} {\em corelis.com}
+\bibitem[17]{corelis} {\em corelis.com}
 \url{http://www.corelis.com/education/Boundary-Scan_Tutorial.htm}
+
+\bibitem[18]{xjtag2}{\em A technical overview of JTAG}
+\url{https://www.xjtag.com/about-jtag/jtag-a-technical-overview/}
+
+\bibitem[19]{fpga4fun}{\em How JTAG works}
+\url{http://www.fpga4fun.com/JTAG2.html}
 
 \end{thebibliography} 
 %
