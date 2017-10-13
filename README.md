@@ -17,3 +17,4 @@ Files to be added to one Questasim project:
 - my_testbench_pkg.svh
 - full_adder.v
 - tap_defines.v
+- config.svh
