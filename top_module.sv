@@ -42,11 +42,15 @@ wire AToCore, BToCore, CinToCore, CoreToSum, CoreToCout;  //Connections between 
 full_adder full_adder1(AToCore, BToCore, CinToCore, CoreToSum, CoreToCout );
 tap_top tap_top1(dif.TMS, dif.TCK, dif.TRST, dif.TDI, dif.TDO, DRShift, DRUpdate, DRCapture, TDO_o);
 
-InputCell InputCellA  (dif.A, w2, DRCapture, DRShift, DRUpdate, dif.TCK, w3, AToCore);
-InputCell InputCellB  (dif.B, w1, DRCapture, DRShift, DRUpdate, dif.TCK, w2, BToCore);
-InputCell InputCellCin(dif.Cin, dif.TDI, DRCapture, DRShift, DRUpdate, dif.TCK, w1, CinToCore);
+InputCell InputCellA  (dif.A, w2, DRCapture, DRShift, DRUpdate, dif.TCK, w3, AToCore, TestMode);
+InputCell InputCellB  (dif.B, w1, DRCapture, DRShift, DRUpdate, dif.TCK, w2, BToCore, TestMode);
+InputCell InputCellCin(dif.Cin, dif.TDI, DRCapture, DRShift, DRUpdate, dif.TCK, w1, CinToCore, TestMode);
 
-InputCell OutputCellSum(CoreToSum, w3, DRCapture, DRShift, DRUpdate, dif.TCK, w4, dif.Sum);
-InputCell OutputCellCout(CoreToCout, w4, DRCapture, DRShift, DRUpdate, dif.TCK, TDO_o, dif.Cout);
+InputCell OutputCellSum(CoreToSum, w3, DRCapture, DRShift, DRUpdate, dif.TCK, w4, dif.Sum, TestMode);
+InputCell OutputCellCout(CoreToCout, w4, DRCapture, DRShift, DRUpdate, dif.TCK, TDO_o, dif.Cout, TestMode);
+
+/////////////////////////////////////////////////////////////////////
+// WICHTIG: Edit the config.v file everytime this file is edited!! //
+/////////////////////////////////////////////////////////////////////
 
 endmodule

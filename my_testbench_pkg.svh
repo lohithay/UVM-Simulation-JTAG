@@ -80,7 +80,6 @@ class my_agent extends uvm_agent;
 		end	
 		phase.drop_objection(this);  // We drop objection to allow the test to complete
 	endtask
-
 endclass: my_agent
 	
 // ================================================================== //
@@ -107,7 +106,6 @@ class my_env extends uvm_env;
 			agent.mon_before.mon_ap_before.connect(mem_scb.sb_export_before);
 			agent.mon_after.mon_ap_after.connect(mem_scb.sb_export_after);
 		endfunction : connect_phase
-
 endclass: my_env
 
 // ================================================================== //
@@ -134,7 +132,6 @@ class my_test extends uvm_test;
 		`uvm_warning("", "Task Started! Ready for Lift-off!")
 		phase.drop_objection(this);  // We drop objection to allow the test to complete
 	endtask
-    
 endclass: my_test
  
 endpackage

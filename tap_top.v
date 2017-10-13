@@ -63,26 +63,27 @@
 // to a single shared FF.
 //
 
-
+`include "tap_defines.v"
+`include "config.svh"
 //tap definitions
 
 // Define IDCODE Value
-`define IDCODE_VALUE  32'h149511c3
+//`define IDCODE_VALUE  32'h149511c3
 // 0001             version
 // 0100100101010001 part number (IQ)
 // 00011100001      manufacturer id (flextronics)
 // 1                required by standard
 
 // Length of the Instruction register
-`define	IR_LENGTH	4
+//`define	IR_LENGTH	4
 
 // Supported Instructions
-`define EXTEST          4'b0000
-`define SAMPLE_PRELOAD  4'b0001
-`define IDCODE          4'b0010
-`define DEBUG           4'b1000
-`define INTEST          4'b1001
-`define BYPASS          4'b1111
+//`define EXTEST          4'b0000
+//`define SAMPLE_PRELOAD  4'b0001
+//`define IDCODE          4'b0010
+//`define DEBUG           4'b1000
+//`define INTEST          4'b1001
+//`define BYPASS          4'b1111
 
 // Top module
 module tap_top(
@@ -98,7 +99,9 @@ module tap_top(
                 update_dr_o,
                 capture_dr_o,
 				
-				bs_chain_tdo_i
+				bs_chain_tdo_i, 
+
+				test_mode_o
               );
 
 
@@ -114,6 +117,9 @@ output  tdo_pad_oe;      // JTAG test data output pad
 output  shift_dr_o;
 output  update_dr_o;
 output  capture_dr_o;
+
+//Defines the state in which the test is working in
+output test_mode_o;
 
 // Wires which depend on the state of the TAP FSM
 reg     test_logic_reset;
@@ -144,12 +150,14 @@ reg     bypass_select;
 // TDO and enable
 reg     tdo_pad_o;
 reg     tdo_padoe_o;
+reg     test_mode;
 
 assign tdo_pad_oe = tdo_pad_o;
 
 assign shift_dr_o = shift_dr;
 assign capture_dr_o = capture_dr;
 assign update_dr_o = update_dr;
+assign test_mode_o = test_mode;
 
 /**********************************************************************************
 *                                                                                 *
@@ -473,6 +481,7 @@ begin
         `EXTEST:            tdo_mux_out = bs_chain_tdo_i;   // Intest instruction
         `SAMPLE_PRELOAD:    tdo_mux_out = bs_chain_tdo_i;   // Intest instruction
         `BYPASS:            tdo_mux_out = bypassed_tdo;     // BYPASS instruction
+        	
         default:            tdo_mux_out = 1'bz;
       endcase
     end
@@ -496,5 +505,16 @@ end
 *   End: Multiplexing TDO data                                                    *
 *                                                                                 *
 **********************************************************************************/
+always @ (posedge tck_pad_i)
+begin
+		`ifdef BYPASS_INSTR test_mode = 1'b1; `endif
+		`ifdef IDCODE_INSTR test_mode = 1'b1; `endif
+		`ifdef SAMPLE_PRELOAD_INSTR test_mode = 1'b1; `endif
+		`ifdef INTEST_INSTR test_mode = 1'b1; `endif
+		`ifdef EXTEST_INSTR test_mode = 1'b1; `endif
+end
+
+
+
 
 endmodule

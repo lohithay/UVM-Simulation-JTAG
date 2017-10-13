@@ -74,6 +74,6 @@
 `define SAMPLE_PRELOAD  4'b0001
 `define IDCODE          4'b0010
 `define DEBUG           4'b1000
-`define MBIST           4'b1001
+//`define MBIST           4'b1001
 `define BYPASS          4'b1111
-
+`define INTEST          4'b1001

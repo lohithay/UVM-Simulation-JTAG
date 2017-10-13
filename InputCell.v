@@ -32,13 +32,14 @@ InputPin ------->| Scan   |-------> ToCore
             
             */
 
-module InputCell( InputPin, FromPreviousBSCell, CaptureDR, ShiftDR, UpdateDR, TCK, ToNextBSCell, ToCore);
+module InputCell( InputPin, FromPreviousBSCell, CaptureDR, ShiftDR, UpdateDR, TCK, ToNextBSCell, ToCore, TestMode);
 input  InputPin;
 input  FromPreviousBSCell;
 input  CaptureDR;
 input  ShiftDR; 
 input  UpdateDR;
 input  TCK;
+input  TestMode;
 output ToNextBSCell;
 output ToCore; 
 
@@ -48,7 +49,9 @@ reg    ToCore;
 
 always @(posedge TCK)
 begin
-	if(CaptureDR)
+  if(!TestMode)
+    ToCore <= InputPin; //If TestMode is 0, i.e in normal operation the BSCell is bypassed
+	else if(CaptureDR)
 		Latch <= InputPin;
 	else if(UpdateDR)
 		ToCore <= Latch; 

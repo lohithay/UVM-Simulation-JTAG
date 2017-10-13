@@ -39,41 +39,46 @@
 //// 															   ////
 //// 13 Jul 2017 - Intest Instruction is implemented			   ////
 //// 															   ////
+//// 11 Aug 2017 - Extest Instruction is added                     ////
+////                                                               ////
 /////////////////////////////////////////////////////////////////////// 
-
-
-// DEFINE TO TEST WHICH INSTRUCTION TO EXECUTE
-// Select only one out of the following
-
-//`define BYPASS_INSTR
-//`define IDCODE_INSTR
-//`define SAMPLE_PRELOAD_INSTR
-`define INTEST_INSTR
-
-
-//GLOBAL VARIABLE Declaration
-integer DATA_LENGTH = 30;  //Enter the length of the expected datastream for BYPASS Instruction
-bit introduceErrorBypass = 0; // Toggle to 1 to introduce errors, 0 for normal operation - BYPASS Instruction 
-bit introduceErrorIdcode = 0; // Toggle to 1 to introduce errors, 0 for normal operation - IDCODE Instruction
-
-
-bit startValiadation = 0;  //Indicates when the data has to be checked
-bit validationBufferTDI [100]; //Storage register for the valid TDI signals
-bit validationBufferTDO [100]; //Storage register for the valid TDO signals
-
-//For Sample/Preload and INTEST instruction
-// Fill the setPreloadValue according to the bits that are 
-// pushed into the TDI serially
-// The values of the bit are written below.
-bit setPreloadValue[5] =   { 0,    0,   1, 1, 0   };
-//bit setPreloadValue[5] = { Cout, Sum, A, B, Cin };
-
-
 
 // Imports
 import uvm_pkg::*;
 `include "uvm_macros.svh"
 `include "tap_defines.v"
+`include "config.svh"
+
+
+bit startValiadation_bypass = 0;  //Indicates when the data has to be checked
+bit startValiadation_intest = 0;  //Indicates when the data has to be checked
+bit startValiadation_extest = 0;  //Indicates when the data has to be checked
+bit startValiadation_samplepreload = 0;  //Indicates when the data has to be checked
+bit startValiadation_idcode = 0;  //Indicates when the data has to be checked
+
+bit validationBufferTDI_bypass [100]; //Storage register for the valid TDI signals
+bit validationBufferTDI_intest [100]; //Storage register for the valid TDI signals
+bit validationBufferTDI_extest [100]; //Storage register for the valid TDI signals
+bit validationBufferTDI_samplepreload [100]; //Storage register for the valid TDI signals
+bit validationBufferTDI_idcode [100]; //Storage register for the valid TDI signals
+
+bit validationBufferTDO_bypass [100]; //Storage register for the valid TDO signals
+bit validationBufferTDO_intest [100]; //Storage register for the valid TDO signals
+bit validationBufferTDO_extest [100]; //Storage register for the valid TDO signals
+bit validationBufferTDO_samplepreload [100]; //Storage register for the valid TDO signals
+bit validationBufferTDO_idcode [100]; //Storage register for the valid TDO signals
+
+integer bypassErrorCount=0;
+
+typedef enum {FALSE, TRUE} boolean;
+
+//For Sample/Preload and INTEST instruction
+// Fill the setPreloadValue according to the bits that are 
+// pushed into the TDI serially
+// The values of the bit are written below.
+reg [`numberOfBoundaryScanCells-1:0] PreloadValue =   `setPreloadValue;
+//bit setPreloadValue[5] = { Cout, Sum, A, B, Cin };
+
 
 // ================================================================== //
 //                                                                    //
@@ -95,7 +100,6 @@ class my_transaction extends uvm_sequence_item;
 	function new (string name = "");
 		super.new(name);
 	endfunction
-
 endclass: my_transaction
 
 // ================================================================== //
@@ -114,7 +118,7 @@ class my_sequence extends uvm_sequence#(my_transaction);
 	integer numberOfRequests = 0;
 
 	task body;
-		numberOfRequests = 80 + DATA_LENGTH;
+		numberOfRequests = 150 + `DATA_LENGTH;
 		repeat(numberOfRequests)
 		begin
 			req = my_transaction::type_id::create("req");
@@ -127,7 +131,6 @@ class my_sequence extends uvm_sequence#(my_transaction);
 			finish_item(req);  // Waiting for the driver to send the item_done() command
 		end
 	endtask: body
-
 endclass: my_sequence
 
 // ================================================================== //
@@ -161,271 +164,65 @@ class my_driver extends uvm_driver #(my_transaction);
 		integer init     = 0;
 		integer count    = 0;
 		integer polarity = 0;
-		
-		// First toggle reset
-		if(init == 0)
-		begin
-			dut_vif.TRST = 0;
-			@(posedge dut_vif.TCK);
-			#1;
-			dut_vif.TRST = 1;		
-			init = 1;
-		end
-				
-		`ifdef BYPASS_INSTR
-		//forever
-		while(count<=11 && init ==1)
-		begin
-			seq_item_port.get_next_item(req);
-			case(count)
-				
-				0: begin //Test Logic Reset STATE
-						dut_vif.TDI = 1; //Initializing the input port to 1'b1
-						dut_vif.TMS = 0;
-						//`uvm_info("DUT", $sformatf("Test Logic Reset STATE"), UVM_MEDIUM)
-						count++;
-					seq_item_port.item_done();
-					@(posedge dut_vif.TCK);
-				end
-				
-				1: begin //Run Test Idle STATE
-						dut_vif.TMS = 1;	
-						count++;
-						//complete = 1; //process completed				
-					seq_item_port.item_done();
-					@(posedge dut_vif.TCK);
-				end
-				
-				2: begin //Select DR Scan STATE
-					dut_vif.TMS = 1;			
-					count++;					
-					seq_item_port.item_done();
-					@(posedge dut_vif.TCK);
-				end
-					
-				3: begin //Select IR Scan STATE		
-					dut_vif.TMS = 0;		
-					count++;					
-					seq_item_port.item_done();
-					@(posedge dut_vif.TCK);
-				end
-					
-				4: begin //CAPTURE IR state
-					dut_vif.TMS = 0;		
-					count++;					
-					seq_item_port.item_done();
-					@(posedge dut_vif.TCK);
-				end
-				 
-				5: begin //SHIFT IR STATE 
-					for(int i=0; i<=2; i++)//SHIFTING THE IR WITH 4 1's for BYPASS instruction
-					begin
-						if(i!=0)  seq_item_port.get_next_item(req);
-						dut_vif.TMS = 0;		
-						dut_vif.TDI = 1;		
-						seq_item_port.item_done();
-						@(posedge dut_vif.TCK);
-					end
-					
-					//Moving to the next state
-					count++;
-					seq_item_port.get_next_item(req);
-					dut_vif.TMS = 1;		
-					//count++;					
-					seq_item_port.item_done();
-					@(posedge dut_vif.TCK);
-					
-				end
-					 
-				6: begin //EXIT1 IR STATE 
-						dut_vif.TMS = 1;		
-						count++;					
-						seq_item_port.item_done();
-						@(posedge dut_vif.TCK);			
-				 end
-				 
-				 7: begin //UPDATE IR STATE 
-						dut_vif.TMS = 1;			
-						count++;
-						seq_item_port.item_done();
-						@(posedge dut_vif.TCK);			
-				 end
-				 
-				 8: begin //SELECT DR STATE 
-						dut_vif.TMS = 0;			
-						count++;
-						seq_item_port.item_done();
-						@(posedge dut_vif.TCK);			
-				 end
 
-				 9: begin //CAPTURE DR STATE 
-						dut_vif.TMS = 0;		
-						count++;
-						seq_item_port.item_done();
-						@(posedge dut_vif.TCK);			
-				 end
-				 
-				 10: begin //SHIFT DR STATE 
-				 		startValiadation = 1;
-						for(int i=0; i<=DATA_LENGTH; i++)//TDI to TDO via BYPASS Register x10
-						begin
-							if(i!=0)  seq_item_port.get_next_item(req);
-							dut_vif.TMS = 0;	
-							dut_vif.TDI = req.tdi; //Random bits are sent to the TDI
-							`uvm_info("DUT", $sformatf("Received TDI=%b, TDO=%b", dut_vif.TDI, dut_vif.TDO), UVM_MEDIUM)							
-							seq_item_port.item_done();
-							@(posedge dut_vif.TCK);			
-						end 
-						count++;
-						init++;
-				 end
 
-				default: break;
-			endcase
-		end //while loop
-		`endif //BYPASS INSTR
-		
-		`ifdef IDCODE_INSTR
-		while(count<=11 && init ==1)
+		boolean bypass_true;
+		boolean idcode_true;
+		boolean samplepreload_true;
+		boolean intest_true;
+		boolean extest_true;
+
+		boolean isFirstReset = TRUE;
+
+		`ifdef BYPASS_INSTR bypass_true = TRUE; `endif
+		`ifndef BYPASS_INSTR bypass_true = FALSE; `endif
+
+		`ifdef IDCODE_INSTR idcode_true = TRUE; `endif
+		`ifndef IDCODE_INSTR idcode_true = FALSE; `endif
+
+		`ifdef SAMPLE_PRELOAD_INSTR samplepreload_true = TRUE; `endif
+		`ifndef SAMPLE_PRELOAD_INSTR samplepreload_true = FALSE; `endif
+
+		`ifdef INTEST_INSTR intest_true = TRUE; `endif
+		`ifndef INTEST_INSTR intest_true = FALSE; `endif
+
+		`ifdef EXTEST_INSTR extest_true = TRUE; `endif
+		`ifndef EXTEST_INSTR extest_true = FALSE; `endif
+
+			
+		init = 1;
+
+		if(idcode_true == TRUE)
 		begin
-			seq_item_port.get_next_item(req);
-			case(count)
-				
-				0: begin //Test Logic Reset STATE
-						dut_vif.TMS = 0;
-						//`uvm_info("DUT", $sformatf("Test Logic Reset STATE"), UVM_MEDIUM)
-						count++;
-					seq_item_port.item_done();
-					@(posedge dut_vif.TCK);
-				end
-				
-				1: begin //Run Test Idle STATE
-						dut_vif.TMS = 1;	
-						count++;
-						//complete = 1; //process completed		
-					seq_item_port.item_done();
-					@(posedge dut_vif.TCK);
-				end
-				
-				2: begin //Select DR Scan STATE
-					dut_vif.TMS = 1;			
-					count++;					
-					seq_item_port.item_done();
-					@(posedge dut_vif.TCK);
-				end
-					
-				3: begin //Select IR Scan STATE		
+
+			if(isFirstReset == TRUE)
+			begin
+				// First toggle reset
+				dut_vif.TRST = 0;
+				@(posedge dut_vif.TCK);
+				#1;
+				dut_vif.TRST = 1;
+
+				//Initializing the TAP controller to go to RUN_TEST_IDLE
+				seq_item_port.get_next_item(req);
+				begin //Test Logic Reset STATE
+					dut_vif.TDI = 1; //Initializing the input port to 1'b1
 					dut_vif.TMS = 0;
-					dut_vif.TDI = 0; //For the first bit that will be shifted into the Instruction Register
-					count++;					
+					//`uvm_info("DUT", $sformatf("Test Logic Reset STATE"), UVM_MEDIUM)
 					seq_item_port.item_done();
 					@(posedge dut_vif.TCK);
 				end
-					
-				 4: begin //capture ir state
-					 dut_vif.TMS = 0;		
-					 count++;					
-					 seq_item_port.item_done();
-					 @(posedge dut_vif.TCK);
-				 end
-				 
-				5: begin //SHIFT IR STATE 
-					for(int i=0; i<=2; i++)//SHIFTING THE IR WITH 4'b0010 - IDCODE instruction
-					begin
-						if(i!=0)  seq_item_port.get_next_item(req);
-						dut_vif.TMS = 0;		
-						if(i==0) dut_vif.TDI = 0;		
-						else if(i==1) dut_vif.TDI = 1;
-						else if(i==2) dut_vif.TDI = 0;
-						//count++;					
-						seq_item_port.item_done();
-						@(posedge dut_vif.TCK);
-					end
-					
-					//Moving to the next state
-					count++;
-					seq_item_port.get_next_item(req);
-					dut_vif.TMS = 1;		
-					//count++;					
-					seq_item_port.item_done();
-					@(posedge dut_vif.TCK);
-					
-				end
-					 
-				6: begin //EXIT1 IR STATE 
-						dut_vif.TMS = 1;		
-						count++;					
-						seq_item_port.item_done();
-						@(posedge dut_vif.TCK);			
-				 end
-				 
-				 7: begin //UPDATE IR STATE 
-						dut_vif.TMS = 1;		
-						count++;
-						seq_item_port.item_done();
-						@(posedge dut_vif.TCK);			
-				 end
-				 
-				 8: begin //SELECT DR STATE 
-						dut_vif.TMS = 0;			
-						count++;
-						seq_item_port.item_done();
-						@(posedge dut_vif.TCK);			
-				 end
+				isFirstReset = FALSE;
+			end
 
-				 9: begin //CAPTURE DR STATE 
-						dut_vif.TMS = 0;			
-						count++;
-						seq_item_port.item_done();
-						@(posedge dut_vif.TCK);			
-				 end
-				 
-				 10: begin //SHIFT DR STATE 
-				 	startValiadation = 1; //Only now the monitor and the scoreboard starts collecting the bits
-						for(int i=0; i<=32; i++)//Shfting out the 32 bit IDCODE
-						begin
-							if(i!=0)  seq_item_port.get_next_item(req);
-							dut_vif.TMS = 0;	
-							dut_vif.TDI = 0;
-							if(introduceErrorIdcode && i>10 && i<15)
-								dut_vif.TDO = 1;
-							//`uvm_info("DUT", $sformatf("TDO=%b", dut_vif.TDO), UVM_MEDIUM	)						
-							seq_item_port.item_done();
-							@(posedge dut_vif.TCK);			
-						end 
-						count++;
-				 end
-				 
-				 11: begin
-						init++;
-						seq_item_port.item_done();
-						@(posedge dut_vif.TCK);
-						break;
-				 end
+			count = 0;
 
-				default: break;				
-			endcase
-		end //while loop
-		`endif //IDCODE INSTR
-		
-		`ifdef INTEST_INSTR
-		 	dut_vif.A   =  setPreloadValue[2];
-			dut_vif.B   =  setPreloadValue[3];
-		 	dut_vif.Cin =  setPreloadValue[4];
-			while(count<=17 && init ==1)
+			while(count<=12 && init ==1)
 			begin
 				seq_item_port.get_next_item(req);
 				case(count)
-					
-					0: begin //Test Logic Reset STATE
-							dut_vif.TMS = 0;
-							//`uvm_info("DUT", $sformatf("Test Logic Reset STATE"), UVM_MEDIUM)
-							count++;
-						seq_item_port.item_done();
-						@(posedge dut_vif.TCK);
-					end
-					
-					1: begin //Run Test Idle STATE
+										
+					0: begin //Run Test Idle STATE
 							dut_vif.TMS = 1;	
 							count++;
 							//complete = 1; //process completed		
@@ -433,14 +230,14 @@ class my_driver extends uvm_driver #(my_transaction);
 						@(posedge dut_vif.TCK);
 					end
 					
-					2: begin //Select DR Scan STATE
+					1: begin //Select DR Scan STATE
 						dut_vif.TMS = 1;			
 						count++;					
 						seq_item_port.item_done();
 						@(posedge dut_vif.TCK);
 					end
 						
-					3: begin //Select IR Scan STATE		
+					2: begin //Select IR Scan STATE		
 						dut_vif.TMS = 0;
 						dut_vif.TDI = 0; //For the first bit that will be shifted into the Instruction Register
 						count++;					
@@ -448,14 +245,337 @@ class my_driver extends uvm_driver #(my_transaction);
 						@(posedge dut_vif.TCK);
 					end
 						
-					 4: begin //capture ir state
+					 3: begin //capture ir state
+						 dut_vif.TMS = 0;		
+						 count++;					
+						 seq_item_port.item_done();
+						 //`uvm_info("DUT", $sformatf("CAPTURE IR"), UVM_MEDIUM	)
+						 @(posedge dut_vif.TCK);
+					 end
+					 
+					4: begin //SHIFT IR STATE 
+						for(int i=0; i<=2; i++)//SHIFTING THE IR WITH 4'b0010 - IDCODE instruction
+						begin
+							if(i!=0)  seq_item_port.get_next_item(req);
+							dut_vif.TMS = 0;		
+							if(i==0) dut_vif.TDI = 0;		
+							else if(i==1) dut_vif.TDI = 1;
+							else if(i==2) dut_vif.TDI = 0;
+							//count++;					
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);
+						end
+						
+						//Moving to the next state
+						count++;
+						seq_item_port.get_next_item(req);
+						dut_vif.TMS = 1;		
+						//count++;					
+						seq_item_port.item_done();
+						@(posedge dut_vif.TCK);
+						
+					end
+						 
+					5: begin //EXIT1 IR STATE 
+							dut_vif.TMS = 1;		
+							count++;					
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+					 
+					 6: begin //UPDATE IR STATE 
+							dut_vif.TMS = 1;		
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+					 
+					 7: begin //SELECT DR STATE 
+							dut_vif.TMS = 0;			
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+
+					 8: begin //CAPTURE DR STATE 
+							dut_vif.TMS = 0;			
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+					 
+					 9: begin //SHIFT DR STATE 
+					 	startValiadation_idcode = 1; //Only now the monitor and the scoreboard starts collecting the bits
+							for(int i=0; i<=32; i++)//Shfting out the 32 bit IDCODE
+							begin
+								if(i!=0)  seq_item_port.get_next_item(req);
+								dut_vif.TMS = 0;	
+								dut_vif.TDI = 0;
+								if(`introduceErrorIdcode == 1 && i>10 && i<15)
+									dut_vif.TDO = 1;
+								//`uvm_info("DUT", $sformatf("TDO=%b", dut_vif.TDO), UVM_MEDIUM	)						
+								seq_item_port.item_done();
+								@(posedge dut_vif.TCK);			
+							end 
+							count++;
+					 end
+					 
+					 10: begin //EXIT1 DR STATE 
+					 		dut_vif.TDI = 0;
+							dut_vif.TMS = 1;		
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+
+					 11: begin //UPDATE DR STATE 
+							dut_vif.TMS = 0;		
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+
+					 12: begin //RUN_TEST_IDLE STATE 
+							dut_vif.TMS = 0;		
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);	
+							
+							dut_vif.TRST = 0;
+							@(posedge dut_vif.TCK);
+							#1;
+							dut_vif.TRST = 1;
+
+							startValiadation_idcode = 0;
+
+					 end
+
+					default: break;				
+				endcase
+			end //while loop
+		end //IDCODE INSTR
+
+		if(bypass_true == TRUE)
+		begin	//forever
+
+			if(isFirstReset == TRUE)
+			begin
+				// First toggle reset
+				dut_vif.TRST = 0;
+				@(posedge dut_vif.TCK);
+				#1;
+				dut_vif.TRST = 1;				
+				isFirstReset = FALSE;
+			end
+				//Initializing the TAP controller to go to RUN_TEST_IDLE
+				seq_item_port.get_next_item(req);
+				begin //Test Logic Reset STATE
+					dut_vif.TDI = 1; //Initializing the input port to 1'b1
+					dut_vif.TMS = 0;
+					//`uvm_info("DUT", $sformatf("Test Logic Reset STATE"), UVM_MEDIUM)
+					seq_item_port.item_done();
+					@(posedge dut_vif.TCK);
+				end
+			
+			count = 0;
+
+			while(count<=12 && init ==1)
+			begin
+				seq_item_port.get_next_item(req);
+				case(count)
+							
+					0: begin //Run Test Idle STATE
+						dut_vif.TMS = 1;	
+						count++;
+						//complete = 1; //process completed				
+						seq_item_port.item_done();
+						@(posedge dut_vif.TCK);
+					end
+					
+					1: begin //Select DR Scan STATE
+						dut_vif.TMS = 1;			
+						count++;					
+						seq_item_port.item_done();
+						@(posedge dut_vif.TCK);
+					end
+						
+					2: begin //Select IR Scan STATE		
+						dut_vif.TMS = 0;		
+						count++;					
+						seq_item_port.item_done();
+						@(posedge dut_vif.TCK);
+					end
+						
+					3: begin //CAPTURE IR state
+						dut_vif.TMS = 0;		
+						count++;					
+						seq_item_port.item_done();
+						@(posedge dut_vif.TCK);
+					end
+					 
+					4: begin //SHIFT IR STATE 
+						for(int i=0; i<=2; i++)//SHIFTING THE IR WITH 4 1's for BYPASS instruction
+						begin
+							if(i!=0)  seq_item_port.get_next_item(req);
+							dut_vif.TMS = 0;		
+							dut_vif.TDI = 1;		
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);
+						end
+						
+						//Moving to the next state
+						count++;
+						seq_item_port.get_next_item(req);
+						dut_vif.TMS = 1;		
+						//count++;					
+						seq_item_port.item_done();
+						@(posedge dut_vif.TCK);
+						
+					end
+						 
+					5: begin //EXIT1 IR STATE 
+							dut_vif.TDI = 0;
+							dut_vif.TMS = 1;		
+							count++;					
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+					 
+					 6: begin //UPDATE IR STATE 
+							dut_vif.TMS = 1;			
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+					 
+					 7: begin //SELECT DR STATE 
+							dut_vif.TMS = 0;			
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+
+					 8: begin //CAPTURE DR STATE 
+							dut_vif.TMS = 0;		
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+					 
+					 9: begin //SHIFT DR STATE 
+					 		startValiadation_bypass = 1;
+							for(int i=0; i<=`DATA_LENGTH; i++)//TDI to TDO via BYPASS Register 
+							begin
+								if(i!=0)  seq_item_port.get_next_item(req);
+								if(i>`DATA_LENGTH/2 && i<(`DATA_LENGTH/2)+5 && `introduceErrorBypass == 1)
+									dut_vif.TDO = 1;
+								dut_vif.TMS = 0;	
+								dut_vif.TDI = req.tdi; //Random bits are sent to the TDI
+								//`uvm_info("DUT", $sformatf("Received TDI=%b, TDO=%b", dut_vif.TDI, dut_vif.TDO), UVM_MEDIUM)							
+								seq_item_port.item_done();
+								@(posedge dut_vif.TCK);			
+							end 
+							count++;
+					 end
+
+					 10: begin //EXIT1 DR STATE 
+					 		dut_vif.TDI = 0;
+							dut_vif.TMS = 1;		
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+
+					 11: begin //UPDATE DR STATE 
+							dut_vif.TMS = 0;		
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+
+					 12: begin //RUN_TEST_IDLE STATE 
+							dut_vif.TMS = 0;		
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);	
+							
+							dut_vif.TRST = 0;
+							@(posedge dut_vif.TCK);
+							#1;
+							dut_vif.TRST = 1;
+							startValiadation_bypass = 0;
+					 end
+
+					default: break;
+				endcase
+			end //while loop
+		end
+		
+		if(intest_true == TRUE)
+		begin
+			if(isFirstReset == TRUE)
+			begin
+				// First toggle reset
+				dut_vif.TRST = 0;
+				@(posedge dut_vif.TCK);
+				#1;
+				dut_vif.TRST = 1;
+				isFirstReset = FALSE;
+			end
+
+			//Initializing the TAP controller to go to RUN_TEST_IDLE
+			seq_item_port.get_next_item(req);
+			begin //Test Logic Reset STATE
+				dut_vif.TDI = 1; //Initializing the input port to 1'b1
+				dut_vif.TMS = 0;
+				seq_item_port.item_done();
+				@(posedge dut_vif.TCK);
+			end
+
+			count = 0;
+			if(`testForFulladder==1)
+			begin
+				dut_vif.A   =  PreloadValue[2];
+				dut_vif.B   =  PreloadValue[3];
+			 	dut_vif.Cin =  PreloadValue[4];
+			end
+
+			while(count<=12 && init ==1)
+			begin
+				seq_item_port.get_next_item(req);
+				case(count)
+					
+					0: begin //Run Test Idle STATE
+						dut_vif.TMS = 1;	
+						count++;
+						//complete = 1; //process completed		
+						seq_item_port.item_done();
+						@(posedge dut_vif.TCK);
+					end
+					
+					1: begin //Select DR Scan STATE
+						dut_vif.TMS = 1;			
+						count++;					
+						seq_item_port.item_done();
+						@(posedge dut_vif.TCK);
+					end
+						
+					2: begin //Select IR Scan STATE		
+						dut_vif.TMS = 0;
+						dut_vif.TDI = 0; //For the first bit that will be shifted into the Instruction Register
+						count++;					
+						seq_item_port.item_done();
+						@(posedge dut_vif.TCK);
+					end
+						
+					3: begin //capture ir state
 						 dut_vif.TMS = 0;		
 						 count++;					
 						 seq_item_port.item_done();
 						 @(posedge dut_vif.TCK);
 					 end
 					 
-					5: begin //SHIFT IR STATE 
+					4: begin //SHIFT IR STATE 
 						for(int i=0; i<=2; i++)//SHIFTING THE IR WITH Instruction for Intest
 						begin
 							if(i!=0)  seq_item_port.get_next_item(req);
@@ -473,50 +593,48 @@ class my_driver extends uvm_driver #(my_transaction);
 						count++;
 						seq_item_port.get_next_item(req);
 						dut_vif.TMS = 1;
-						dut_vif.TDI = 1;
-						//count++;					
+						dut_vif.TDI = 1;			
 						seq_item_port.item_done();
 						@(posedge dut_vif.TCK);
 						
 					end
-						 
-					6: begin //EXIT1 IR STATE 
+					
+					5: begin //EXIT1 IR STATE 
 							dut_vif.TMS = 1;
 							dut_vif.TDI = 0;		
 							count++;					
 							seq_item_port.item_done();
 							@(posedge dut_vif.TCK);			
 					 end
-					 
-					 7: begin //UPDATE IR STATE 
+					
+					 6: begin //UPDATE IR STATE 
 							dut_vif.TMS = 1;		
 							count++;
 							seq_item_port.item_done();
 							@(posedge dut_vif.TCK);			
 					 end
-					 
-					 8: begin //SELECT DR STATE 
+					
+					 7: begin //SELECT DR STATE 
 							dut_vif.TMS = 0;			
 							count++;
 							seq_item_port.item_done();
 							@(posedge dut_vif.TCK);			
 					 end
 
-					 9: begin //CAPTURE DR STATE 
-							
+					 8: begin //CAPTURE DR STATE 
 							dut_vif.TMS = 0;							
 							count++;
 							seq_item_port.item_done();
 							@(posedge dut_vif.TCK);			
 					 end
 					 
-					 10: begin //SHIFT DR STATE 
+					 9: begin //SHIFT DR STATE 
 					 		//startValiadation = 1;
-							for(int i=0; i<4; i++)//Shfting in the bits for Preloading
+							for(int i=0; i<`numberOfBoundaryScanCells-1; i++)//Shfting in the bits for Preloading
 							begin
 								if(i!=0)  seq_item_port.get_next_item(req);
-								dut_vif.TMS = 0;	
-								dut_vif.TDI = setPreloadValue[i];
+								dut_vif.TMS = 0;		
+								dut_vif.TDI = PreloadValue[i];
 								//if(introduceErrorIdcode && i>10 && i<15)
 								//	dut_vif.TDO = 1;
 								//`uvm_info("DUT", $sformatf("TDO=%b", dut_vif.TDO), UVM_MEDIUM	)						
@@ -526,96 +644,69 @@ class my_driver extends uvm_driver #(my_transaction);
 							count++;
 					 end
 
-					 11: begin //EXIT1 DR STATE 
+					 10: begin //EXIT1 DR STATE 
 							dut_vif.TMS = 1;
-							dut_vif.TDI = setPreloadValue[4];			
+							dut_vif.TDI = PreloadValue[`numberOfBoundaryScanCells-1];			
 							count++;
 							seq_item_port.item_done();
 							@(posedge dut_vif.TCK);			
 					 end
 
-					 12: begin //UPDATE DR STATE 
+					 11: begin //UPDATE DR STATE 
 							dut_vif.TMS = 1;			
 							count++;
 							seq_item_port.item_done();
 							@(posedge dut_vif.TCK);			
 					 end
 
-					 13: begin // SELECT DR SCAN
-							dut_vif.TMS = 1;			
+					 12: begin //RUN_TEST_IDLE STATE 
+							dut_vif.TMS = 0;		
 							count++;
 							seq_item_port.item_done();
-							@(posedge dut_vif.TCK);			
-					 end
-
-					 14: begin // CAPTURE DR SCAN
-							dut_vif.TMS = 0;			
-							count++;
-							seq_item_port.item_done();
-							@(posedge dut_vif.TCK);			
-					 end 
-					 
-					 15: begin //SHIFT DR STATE 
-					 		startValiadation = 1;
-							for(int i=0; i<=4; i++)//Shfting out the bits to test Internal Circuitry
-							begin
-								if(i!=0)  seq_item_port.get_next_item(req);
-								dut_vif.TMS = 0;	
-								dut_vif.TDI = setPreloadValue[i];
-								//if(introduceErrorIdcode && i>10 && i<15)
-								//	dut_vif.TDO = 1;
-								//`uvm_info("DUT", $sformatf("TDO=%b", dut_vif.TDO), UVM_MEDIUM	)						
-								seq_item_port.item_done();
-								@(posedge dut_vif.TCK);			
-							end 
-							count++;
-					 end
-
-					 16: begin //EXIT1 DR STATE 
-					 		//init++;
-							dut_vif.TMS = 1;
-							dut_vif.TDI = setPreloadValue[4];			
-							count++;
-							seq_item_port.item_done();
-							@(posedge dut_vif.TCK);			
-					 end
-				 
-					 17: begin //Pause DR STATE 
-					 		for (int i = 0; i < 5; i++) 
-					 		begin
-					 			if(i!=0)  seq_item_port.get_next_item(req);
-					 			dut_vif.TMS = 0;
-					 			seq_item_port.item_done();
-								@(posedge dut_vif.TCK);
-					 		end									
-							count++;
-							init++;			
+							@(posedge dut_vif.TCK);	
+							
+							dut_vif.TRST = 0;
+							@(posedge dut_vif.TCK);
+							#1;
+							dut_vif.TRST = 1;
+							startValiadation_bypass = 0;
 					 end
 
 					default: break;				
+			
 				endcase
 			end //while loop
-		 `endif //INTEST_INSTR
+		end //INTEST_INSTR
 		
-		 `ifdef SAMPLE_PRELOAD_INSTR
-		 	//dut_vif.A = 1'b1;
-		 	//dut_vif.B = 1'b1;
-		 	//dut_vif.Cin = 1'b0;
+		if(samplepreload_true == TRUE)
+		begin
+			if(isFirstReset == TRUE)
+			begin
+				// First toggle reset
+				dut_vif.TRST = 0;
+				@(posedge dut_vif.TCK);
+				#1;
+				dut_vif.TRST = 1;
+				isFirstReset = FALSE;
+			end
 
-			while(count<=11 && init ==1)
+			//Initializing the TAP controller to go to RUN_TEST_IDLE
+			seq_item_port.get_next_item(req);
+			begin //Test Logic Reset STATE
+				dut_vif.TDI = 1; //Initializing the input port to 1'b1
+				dut_vif.TMS = 0;
+				seq_item_port.item_done();
+				@(posedge dut_vif.TCK);
+			end
+
+			count = 0;
+			
+			while(count<=12 && init ==1)
 			begin
 				seq_item_port.get_next_item(req);
 				case(count)
-					
-					0: begin //Test Logic Reset STATE
-							dut_vif.TMS = 0;
-							//`uvm_info("DUT", $sformatf("Test Logic Reset STATE"), UVM_MEDIUM)
-							count++;
-						seq_item_port.item_done();
-						@(posedge dut_vif.TCK);
-					end
-					
-					1: begin //Run Test Idle STATE
+										
+					0: begin //Run Test Idle STATE
 							dut_vif.TMS = 1;	
 							count++;
 							//complete = 1; //process completed		
@@ -623,14 +714,14 @@ class my_driver extends uvm_driver #(my_transaction);
 						@(posedge dut_vif.TCK);
 					end
 					
-					2: begin //Select DR Scan STATE
+					1: begin //Select DR Scan STATE
 						dut_vif.TMS = 1;			
 						count++;					
 						seq_item_port.item_done();
 						@(posedge dut_vif.TCK);
 					end
 						
-					3: begin //Select IR Scan STATE		
+					2: begin //Select IR Scan STATE		
 						dut_vif.TMS = 0;
 						dut_vif.TDI = 0; //For the first bit that will be shifted into the Instruction Register
 						count++;					
@@ -638,14 +729,14 @@ class my_driver extends uvm_driver #(my_transaction);
 						@(posedge dut_vif.TCK);
 					end
 						
-					 4: begin //capture ir state
+					3: begin //capture ir state
 						 dut_vif.TMS = 0;		
 						 count++;					
 						 seq_item_port.item_done();
 						 @(posedge dut_vif.TCK);
 					 end
 					 
-					5: begin //SHIFT IR STATE 
+					4: begin //SHIFT IR STATE 
 						for(int i=0; i<=2; i++)//SHIFTING THE IR WITH Instruction for Sample/Preload
 						begin
 							if(i!=0)  seq_item_port.get_next_item(req);
@@ -669,41 +760,41 @@ class my_driver extends uvm_driver #(my_transaction);
 						
 					end
 						 
-					6: begin //EXIT1 IR STATE 
+					5: begin //EXIT1 IR STATE 
 							dut_vif.TMS = 1;		
 							count++;					
 							seq_item_port.item_done();
 							@(posedge dut_vif.TCK);			
 					 end
 					 
-					 7: begin //UPDATE IR STATE 
+					6: begin //UPDATE IR STATE 
 							dut_vif.TMS = 1;		
 							count++;
 							seq_item_port.item_done();
 							@(posedge dut_vif.TCK);			
 					 end
 					 
-					 8: begin //SELECT DR STATE 
+					7: begin //SELECT DR STATE 
 							dut_vif.TMS = 0;			
 							count++;
 							seq_item_port.item_done();
 							@(posedge dut_vif.TCK);			
 					 end
 
-					 9: begin //CAPTURE DR STATE 
+					8: begin //CAPTURE DR STATE 
 							dut_vif.TMS = 0;			
 							count++;
 							seq_item_port.item_done();
 							@(posedge dut_vif.TCK);			
 					 end
 					 
-					 10: begin //SHIFT DR STATE 
-					 		startValiadation = 1;
-							for(int i=0; i<=4; i++)//Shfting out the bits via BOundary Scan
+					9: begin //SHIFT DR STATE 
+					 		//startValiadation = 1;
+							for(int i=0; i<=`numberOfBoundaryScanCells-1; i++)//Shfting out the bits via BOundary Scan
 							begin
 								if(i!=0)  seq_item_port.get_next_item(req);
 								dut_vif.TMS = 0;	
-								dut_vif.TDI = setPreloadValue[i];
+								dut_vif.TDI = PreloadValue[i];
 								//if(introduceErrorIdcode && i>10 && i<15)
 								//	dut_vif.TDO = 1;
 								//`uvm_info("DUT", $sformatf("TDO=%b", dut_vif.TDO), UVM_MEDIUM	)						
@@ -712,101 +803,382 @@ class my_driver extends uvm_driver #(my_transaction);
 							end 
 							count++;
 					 end
-					 
-					 11: begin
-							init++;
+
+					 10: begin //EXIT1 DR STATE 
+					 		dut_vif.TDI = 0;
+							dut_vif.TMS = 1;		
+							count++;
 							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+
+					 11: begin //UPDATE DR STATE 
+							dut_vif.TMS = 0;		
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+
+					 12: begin //RUN_TEST_IDLE STATE 
+							dut_vif.TMS = 0;		
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);	
+							
+							dut_vif.TRST = 0;
 							@(posedge dut_vif.TCK);
-							break;
+							#1;
+							dut_vif.TRST = 1;
+							startValiadation_bypass = 0;
 					 end
 
 					default: break;				
 				endcase
 			end //while loop	
-		 `endif //SAMPLE_PRELOAD_INSTR
+		end //SAMPLE_PRELOAD_INSTR
 		
-		//ALL the tests to verify the instructions are defined
-		if(init == 2) 
+		
+		if(extest_true == TRUE)
 		begin
-			`uvm_warning("", "TEST COMPLETED!!")
-			`ifdef BYPASS_INSTR compareForBypass(); `endif
-			`ifdef IDCODE_INSTR compareForIdcode(); `endif
-			`ifdef INTEST_INSTR printForIntest(); `endif
-			report_phase(phase);
-		end
+			if(isFirstReset == TRUE)
+			begin
+				// First toggle reset
+				dut_vif.TRST = 0;
+				@(posedge dut_vif.TCK);
+				#1;
+				dut_vif.TRST = 1;
+				isFirstReset = FALSE;
+			end
+
+			//Initializing the TAP controller to go to RUN_TEST_IDLE
+			seq_item_port.get_next_item(req);
+			begin //Test Logic Reset STATE
+				dut_vif.TDI = 1; //Initializing the input port to 1'b1
+				dut_vif.TMS = 0;
+				seq_item_port.item_done();
+				@(posedge dut_vif.TCK);
+			end
+
+			count = 0;
+			if(`testForFulladder==1)
+			begin
+				dut_vif.A   =  PreloadValue[2];
+				dut_vif.B   =  PreloadValue[3];
+			 	dut_vif.Cin =  PreloadValue[4];
+			end
+
+			while(count<=17 && init ==1)
+			begin
+				seq_item_port.get_next_item(req);
+				case(count)
+					
+					0: begin //Run Test Idle STATE
+						dut_vif.TMS = 1;	
+						count++;
+						//complete = 1; //process completed		
+						seq_item_port.item_done();
+						@(posedge dut_vif.TCK);
+					end
+					
+					1: begin //Select DR Scan STATE
+						dut_vif.TMS = 1;			
+						count++;					
+						seq_item_port.item_done();
+						@(posedge dut_vif.TCK);
+					end
+						
+					2: begin //Select IR Scan STATE		
+						dut_vif.TMS = 0;
+						dut_vif.TDI = 0; //For the first bit that will be shifted into the Instruction Register
+						count++;					
+						seq_item_port.item_done();
+						@(posedge dut_vif.TCK);
+					end
+						
+					3: begin //capture ir state
+						 dut_vif.TMS = 0;		
+						 count++;					
+						 seq_item_port.item_done();
+						 @(posedge dut_vif.TCK);
+					 end
+					 
+					4: begin //SHIFT IR STATE 
+						for(int i=0; i<=2; i++)//SHIFTING THE IR WITH Instruction for Intest
+						begin
+							if(i!=0)  seq_item_port.get_next_item(req);
+							dut_vif.TMS = 0;		
+							if(i==0) dut_vif.TDI = 0;		
+							else if(i==1) dut_vif.TDI = 0;
+							else if(i==2) dut_vif.TDI = 0;
+							//else if(i==3) dut_vif.TDI = 1;
+							//count++;					
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);
+						end
+						
+						//Moving to the next state
+						count++;
+						seq_item_port.get_next_item(req);
+						dut_vif.TMS = 1;
+						dut_vif.TDI = 0;			
+						seq_item_port.item_done();
+						@(posedge dut_vif.TCK);
+						
+					end
+					
+					5: begin //EXIT1 IR STATE 
+							dut_vif.TMS = 1;
+							dut_vif.TDI = 0;		
+							count++;					
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+					
+					 6: begin //UPDATE IR STATE 
+							dut_vif.TMS = 1;		
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+					
+					 7: begin //SELECT DR STATE 
+							dut_vif.TMS = 0;			
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+
+					 8: begin //CAPTURE DR STATE 
+							dut_vif.TMS = 0;							
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+					 
+					 9: begin //SHIFT DR STATE 
+					 		//startValiadation = 1;
+							for(int i=0; i<`numberOfBoundaryScanCells-1; i++)//Shfting in the bits for Preloading
+							begin
+								if(i!=0)  seq_item_port.get_next_item(req);
+								dut_vif.TMS = 0;		
+								dut_vif.TDI = PreloadValue[i];
+								//if(introduceErrorIdcode && i>10 && i<15)
+								//	dut_vif.TDO = 1;
+								//`uvm_info("DUT", $sformatf("TDO=%b", dut_vif.TDO), UVM_MEDIUM	)						
+								seq_item_port.item_done();
+								@(posedge dut_vif.TCK);			
+							end 
+							count++;
+					 end
+
+					 10: begin //EXIT1 DR STATE 
+							dut_vif.TMS = 1;
+							dut_vif.TDI = PreloadValue[`numberOfBoundaryScanCells-1];			
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+
+					 11: begin //UPDATE DR STATE 
+							dut_vif.TMS = 1;			
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+
+					 12: begin // SELECT DR SCAN
+							dut_vif.TMS = 1;			
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+
+					 13: begin // CAPTURE DR SCAN
+							dut_vif.TMS = 0;			
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end 
+					 
+					 14: begin //SHIFT DR STATE 
+					 		startValiadation_intest = 1;
+							for(int i=0; i<=`numberOfBoundaryScanCells-1; i++)//Shfting out the bits to test Internal Circuitry
+							begin
+								if(i!=0)  seq_item_port.get_next_item(req);
+								dut_vif.TMS = 0;	
+								dut_vif.TDI = PreloadValue[i];
+								//if(introduceErrorIdcode && i>10 && i<15)
+								//	dut_vif.TDO = 1;
+								//`uvm_info("DUT", $sformatf("TDO=%b", dut_vif.TDO), UVM_MEDIUM	)						
+								seq_item_port.item_done();
+								@(posedge dut_vif.TCK);			
+							end 
+							count++;
+					 end
+
+					 15: begin //EXIT1 DR STATE 
+							dut_vif.TMS = 1;
+							dut_vif.TDI = PreloadValue[`numberOfBoundaryScanCells-1];			
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+
+					 16: begin //UPDATE DR STATE 
+							dut_vif.TMS = 0;		
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);			
+					 end
+
+					 17: begin //RUN_TEST_IDLE STATE 
+							dut_vif.TMS = 0;		
+							count++;
+							seq_item_port.item_done();
+							@(posedge dut_vif.TCK);	
+							//init++;		
+					 end
+			
+					default: break;				
+			
+				endcase
+			end //while loop
+		end //EXTEST_INSTR
+
+
+		`uvm_warning("", "TEST COMPLETED!!")
+		
+		`ifdef BYPASS_INSTR compareForBypass(); `endif
+		
+		`ifdef IDCODE_INSTR compareForIdcode(); `endif
+		
+		`ifdef EXTEST_INSTR 
+			if(`testForFulladder)
+				printForExtestFullAdder(); 
+			else
+				printExtest();
+		`endif
+		
+		`ifdef SAMPLE_PRELOAD_INSTR printSamplePreload(); `endif
+
+		`ifdef INTEST_INSTR	printIntest(); `endif
+		report_phase(phase);
+
 	endtask
 
 	virtual function void compareForBypass();
-		for(integer m=0; m<DATA_LENGTH; m++)
+
+		//$display("BYPASS INSTRUCTION SELECTED:");
+
+		for(integer m=0; m<`DATA_LENGTH; m++)
 		begin
-			if(validationBufferTDI[m]==validationBufferTDO[m+2]) // One clock cycle delay. The BYPASS register is a 1-bit register.
+			if(validationBufferTDI_bypass[m]==validationBufferTDO_bypass[m+2]) // One clock cycle delay. The BYPASS register is a 1-bit register.
 			begin
-				`uvm_warning("compareForBypass", "SAME" )
-				$display("TDI= %b TDO=%b ",validationBufferTDI[m], validationBufferTDO[m+2] );
+				//`uvm_warning("compareForBypass", "SAME" )
+				//$display("TDI= %b TDO=%b ",validationBufferTDI_bypass[m], validationBufferTDO_bypass[m+2] );
 			end
 			else
 			begin
 				`uvm_error("compareForBypass", "DIFFERENT")
-				$display("TDI= %b TDO=%b ",validationBufferTDI[m], validationBufferTDO[m+2] );
+				$display("compareForBypass: TDI= %b TDO=%b ",validationBufferTDI_bypass[m], validationBufferTDO_bypass[m+2] );
+				bypassErrorCount++;
 			end
+		end
+
+		if(bypassErrorCount == 0)
+		begin 
+			$display("\n\nBYPASS PASSED SUCCESSFULLY! \n\n",);
+		end
+		else
+		begin
+			$display("\n\nBYPASS FAILED! Check previous log for details \n\n",);
 		end
 	endfunction: compareForBypass
 
-	virtual function void compareForIdcode(); 
+	virtual function void compareForIdcode();
+
 		bit [31:0] EXPECTED = `IDCODE_VALUE;
 		bit [31:0] RECEIVED;
 
+		//$display("IDCODE INSTRUCTION SELECTED:");
+
 		for(integer m=0; m<32; m++)
 		begin
-			RECEIVED[m] = validationBufferTDO[m+1]; 
+			RECEIVED[m] = validationBufferTDO_idcode[m+1]; 
 			//$display("%d RECEIVED= %b EXPECTED=%b ",m+1, validationBufferTDO[m+1], EXPECTED[m] );
 		end
 		
 		if(RECEIVED == EXPECTED) // Comparing the bit stream read out on TDO with the expected value of the IDCODE register
 		begin
-			`uvm_warning("compareForIdcode", "IDCODE MATCHED!" )
-			$display(" RECEIVED IDCODE= %h EXPECTED IDCODE=%h ", RECEIVED, EXPECTED );
+			//`uvm_warning("compareForIdcode", "IDCODE MATCHED!" )
+			$display(" \n\nRECEIVED IDCODE= %h EXPECTED IDCODE=%h ", RECEIVED, EXPECTED );
+			$display("IDCODE PASSED SUCCESSFULLY \n\n",);
 		end
 		else
 		begin `uvm_error("compareForIdcode", "IDCODE DO NOT MATCH")
-			$display(" RECEIVED IDCODE= %h EXPECTED IDCODE=%h ", RECEIVED, EXPECTED );
+			$display(" \n\nRECEIVED IDCODE= %h EXPECTED IDCODE=%h ", RECEIVED, EXPECTED );
+			$display("IDCODE FAILED! \n\n",);
 		end
 	endfunction: compareForIdcode
 
-	virtual function void printForIntest();
+	virtual function void printForExtestFullAdder();
+
 		bit [1:0] EXPECTED;
+		bit errorExists = 0;
+		//$display("INTEST INSTRUCTION SELECTED:\n");
 
 		//EXPECTED output values
-		{EXPECTED[1], EXPECTED[0]} = setPreloadValue[2] + setPreloadValue[3] + setPreloadValue[4];
+		{EXPECTED[1], EXPECTED[0]} = PreloadValue[2] + PreloadValue[3] + PreloadValue[4];
 
 		//Comparing each input and output
-		if(EXPECTED[0] != validationBufferTDO[4]) //Checking for Sum
+		if(EXPECTED[0] != validationBufferTDO_intest[4]) //Checking for Sum
 		begin
 			`uvm_error("printForIntest", "Sum Value is wrong!")
+			errorExists = 1;
 			//$display("EXPECTED - %d RECEIVED - %d", EXPECTED[1], validationBufferTDO[4]);
 		end
-		if(EXPECTED[1] != validationBufferTDO[3]) //Checking for Cout
+		if(EXPECTED[1] != validationBufferTDO_intest[3]) //Checking for Cout
 		begin
 			`uvm_error("printForIntest", "Cout Value is wrong")
+			errorExists = 1;
 			//$display("EXPECTED - %d RECEIVED - %d", EXPECTED[0], validationBufferTDO[3]);
 		end
-		if(setPreloadValue[2] != validationBufferTDO[5]) //Checking for A
+		if(PreloadValue[2] != validationBufferTDO_intest[5]) //Checking for A
 		begin
 			`uvm_error("printForIntest", "A Value is wrong")
+			errorExists = 1;
 		end
-		if(setPreloadValue[3] != validationBufferTDO[6]) //Checking for B
+		if(PreloadValue[3] != validationBufferTDO_intest[6]) //Checking for B
 		begin
 			`uvm_error("printForIntest", "B Value is wrong")
+			errorExists = 1;
 		end
-		if(setPreloadValue[4] != validationBufferTDO[7]) //Checking for Cin
+		if(PreloadValue[4] != validationBufferTDO_intest[7]) //Checking for Cin
 		begin
 			`uvm_error("printForIntest", "C Value is wrong")
+			errorExists = 1;
 		end
 
-		$display("A - %d \n B - %d \n Cin - %d \n Sum - %d \n Cout - %d \n",validationBufferTDO[5],validationBufferTDO[6],validationBufferTDO[7],validationBufferTDO[4],validationBufferTDO[3]);
-	endfunction: printForIntest
+		if(errorExists == 1)
+			$display(" \n\nEXTEST FAILED! \n\n",);
+		else
+			$display(" \n\nEXTEST PASSED SUCCESSFULLY \n\n",);
+	endfunction: printForExtestFullAdder
 
+	virtual function void printSamplePreload();
 
+		$display("\n\nSAMPLE-PRELOAD INSTRUCTION executed \n\n",);
+	endfunction: printSamplePreload
+
+	virtual function void printIntest();
+
+		$display("\n\nINTEST INSTRUCTION executed \n\n",);
+	endfunction : printIntest
+
+	virtual function void printExtest();
+
+		$display("\n\nEXTEST INSTRUCTION executed \n\n",);
+	endfunction : printExtest
 
 	function void report_phase(uvm_phase phase);
 		uvm_report_server svr;
@@ -824,6 +1196,7 @@ class my_driver extends uvm_driver #(my_transaction);
 			`uvm_info(get_type_name(), "---------------------------------------", UVM_NONE)
 		end
 	endfunction
+
 endclass: my_driver
 
 // ================================================================== //
@@ -833,7 +1206,7 @@ endclass: my_driver
 // ================================================================== //
 class jtag_monitor_before extends uvm_monitor;
 	`uvm_component_utils(jtag_monitor_before)
- 
+
 	uvm_analysis_port#(my_transaction) mon_ap_before;
  
 	virtual dut_if dut_vif;
@@ -861,14 +1234,14 @@ class jtag_monitor_before extends uvm_monitor;
 		forever begin
 			@(posedge dut_vif.TCK)
 			begin
-				if(startValiadation)
+				if(startValiadation_bypass)
 				begin
 					sa_tx.tdi = dut_vif.TDI;
 					mon_ap_before.write(sa_tx); // This instruction writes the data to the scoreboard
-					validationBufferTDI[tdiScan]=dut_vif.TDI; 
+					validationBufferTDI_bypass[tdiScan]=dut_vif.TDI; 
 					tdiScan++;
 				end
-			end
+			end			
 		end
 	endtask: run_phase
 endclass: jtag_monitor_before
@@ -886,7 +1259,11 @@ class jtag_monitor_after extends uvm_monitor;
 	virtual dut_if dut_vif;
 
 	reg [1:0] clock_value ;
-	integer tdoScan =0;
+	integer tdoScan_bypass =0;
+	integer tdoScan_idcode =0;
+	integer tdoScan_intest =0;
+	integer tdoScan_extest =0;
+
 
 	function new(string name, uvm_component parent);
 		super.new(name, parent);
@@ -906,63 +1283,38 @@ class jtag_monitor_after extends uvm_monitor;
 		sa_tx_after = my_transaction::type_id::create(.name("sa_tx_after"), .contxt(get_full_name()));
 
 		forever begin
-			`ifdef BYPASS_INSTR
-				@(negedge dut_vif.TCK)
-				begin
-					if(startValiadation)
-					begin
-						sa_tx_after.tdo = dut_vif.TDO;
-						mon_ap_after.write(sa_tx_after);
-						validationBufferTDO[tdoScan]=dut_vif.TDO;
-						tdoScan++;
-					end
-				end
-			`endif
 
-			`ifdef IDCODE_INSTR
 			@(negedge dut_vif.TCK)
-			begin
-				if(startValiadation)
+			begin					
+				if(startValiadation_bypass == 1)
 				begin
 					sa_tx_after.tdo = dut_vif.TDO;
 					mon_ap_after.write(sa_tx_after);
-					validationBufferTDO[tdoScan]=dut_vif.TDO;
-					tdoScan++;
+					validationBufferTDO_bypass[tdoScan_bypass]=dut_vif.TDO;
+					tdoScan_bypass++;
 				end
-			end
-			`endif
-			`ifdef SAMPLE_PRELOAD_INSTR
-			@(negedge dut_vif.TCK)
-			begin
-				if(startValiadation)
+
+				if(startValiadation_idcode == 1)
 				begin
 					sa_tx_after.tdo = dut_vif.TDO;
 					mon_ap_after.write(sa_tx_after);
-					//validationBufferTDO[tdoScan]=dut_vif.TDO;
-					//tdoScan++;
+					validationBufferTDO_idcode[tdoScan_idcode]=dut_vif.TDO;
+					tdoScan_idcode++;
 				end
-			end
-			`endif
 
-			`ifdef INTEST_INSTR
-			@(negedge dut_vif.TCK)
-			begin
-				if(startValiadation)
+				if(startValiadation_intest == 1)
 				begin
 					sa_tx_after.tdo = dut_vif.TDO;
 					mon_ap_after.write(sa_tx_after);
-					validationBufferTDO[tdoScan]=dut_vif.TDO;
-					//$display("%d $time() %d Value of TDO - %d",tdoScan, $time, validationBufferTDO[tdoScan]);
-					tdoScan++;
+					validationBufferTDO_intest[tdoScan_intest]=dut_vif.TDO;
+					//$display("%d $time() %d Value of TDO - %d",tdoScan_intest, $time, validationBufferTDO_intest[tdoScan_intest]);
+					tdoScan_intest++;
 				end
-			end
-			`endif
 
+			end
 		end
 	endtask: run_phase
 endclass: jtag_monitor_after
-
-
 
 // ================================================================== //
 //                                                                    //
@@ -1005,13 +1357,6 @@ class jtag_scoreboard extends uvm_scoreboard;
 		forever begin
 			before_fifo.get(transaction_before);
 			after_fifo.get(transaction_after);
-			//`uvm_warning("", "Got into FIFO!")
 		end
 	endtask: run
 endclass: jtag_scoreboard
-
-
-
-
-// OFFLINE CHANGES MADE:
-// Monitor and the scoreboard have been added
