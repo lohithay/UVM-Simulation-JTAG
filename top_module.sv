@@ -40,7 +40,7 @@ wire DRCapture, DRShift, DRUpdate;  //Connections between the TAP controller and
 wire AToCore, BToCore, CinToCore, CoreToSum, CoreToCout;  //Connections between Boundary Scan Cells and the FullAdder
 
 full_adder full_adder1(AToCore, BToCore, CinToCore, CoreToSum, CoreToCout );
-tap_top tap_top1(dif.TMS, dif.TCK, dif.TRST, dif.TDI, dif.TDO, DRShift, DRUpdate, DRCapture, TDO_o);
+tap_top tap_top1(dif.TMS, dif.TCK, dif.TRST, dif.TDI, dif.TDO, DRShift, DRUpdate, DRCapture, TDO_o, TestMode);
 
 InputCell InputCellA  (dif.A, w2, DRCapture, DRShift, DRUpdate, dif.TCK, w3, AToCore, TestMode);
 InputCell InputCellB  (dif.B, w1, DRCapture, DRShift, DRUpdate, dif.TCK, w2, BToCore, TestMode);
