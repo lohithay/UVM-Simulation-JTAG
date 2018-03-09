@@ -1,30 +1,8 @@
-# ResearchProjectModule
-Masters Module: ResearchProject
-Name: Serin Varghese
-serin_varghese@yahoo.com
-Student
-TU Chemnitz
-Masters - Micro and Nano Systems
-
-
-Files to be added to one Questasim project:
-
-- top_module.sv
-- tap_top.v
-- testbench.sv
-- InputCell.v
-- my_sequence.svh
-- my_testbench_pkg.svh
-- full_adder.v
-- tap_defines.v
-- config.svh
 # UVM Simulation Model for a JTAG Interface
 A verification component is designed for a device with a JTAG interface. We have selected a full adder module with JTAG capability as our device under test. The instructions of Idcode, Bypass, Sample/Preload, Extest and Intest are implemented. All the implemented instructions are IEEE 1149.1 standard compliant. This verification component is designed with the use of the Universal Verification Methodology. Using the modules of the UVM environment, we have given the DUT a set of constrained stimulus and observed the response. The designed VC has the capability to introduce errors to understand how the VC would react to runtime errors. The errors, if any, are printed out on the console. This VC gives us an advantage of reusability wherein this full adder module can be replaced by any other module and the tests can be repeated with little effort. In this project we have designed the advanced DUTs with JTAG capability and verification environment, tested the working of the JTAG instructions and finally compared the expected data with the one that is actually observed. 
 
-
 ## Installation
 This project needs QuestaSim to run. 
-
 
 ## Usage
 
@@ -56,5 +34,5 @@ Steps to run the code:
 TODO: Write credits
 
 ## License
-
-TODO: Write license
+The JTAG DUT is adapted from TAG Test Access Port (TAP) http://www.opencores.org/projects/jtag/
+https://github.com/lgeek/adv_debug_sys/tree/master/Hardware/jtag/tap/rtl/verilog
